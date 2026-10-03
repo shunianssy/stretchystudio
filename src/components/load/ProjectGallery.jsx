@@ -29,8 +29,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from '@/i18n';
 
 export function ProjectGallery({ onSelect, onProjectsLoaded, header, className = "" }) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -122,8 +124,8 @@ export function ProjectGallery({ onSelect, onProjectsLoaded, header, className =
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
         <Clock className="h-10 w-10 mb-4 opacity-20" />
-        <p className="text-sm font-medium">No saved projects yet</p>
-        <p className="text-xs">Projects saved to library will appear here.</p>
+        <p className="text-sm font-medium">{t('io.gallery.emptyTitle')}</p>
+        <p className="text-xs">{t('io.gallery.emptyHint')}</p>
       </div>
     );
   }
@@ -134,7 +136,7 @@ export function ProjectGallery({ onSelect, onProjectsLoaded, header, className =
       {projects.map((p) => (
         <div
           key={p.id}
-          className="group relative flex flex-col bg-card border rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-all shadow-sm hover:shadow-md"
+          className="relative flex flex-col bg-card border rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-all shadow-sm hover:shadow-md"
           onClick={() => onSelect(p)}
         >
           {/* Thumbnail */}
@@ -148,39 +150,36 @@ export function ProjectGallery({ onSelect, onProjectsLoaded, header, className =
             ) : (
               <FileArchive className="h-12 w-12 opacity-10" />
             )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              <Check className="text-white h-8 w-8" />
-            </div>
             
             {/* Quick Actions Overlay */}
-            <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 right-2 flex flex-col gap-1">
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm shadow-sm"
+                className="h-7 w-7 bg-background"
                 onClick={(e) => handleCopy(e, p.id)}
-                title="Duplicate"
+                title={t('common.duplicate')}
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm shadow-sm"
+                className="h-7 w-7 bg-background"
                 onClick={(e) => handleDownload(e, p)}
-                title="Download .stretch"
+                title={t('io.gallery.download')}
               >
                 <Download className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-7 w-7 bg-background/80 backdrop-blur-sm shadow-sm hover:text-destructive"
+                className="h-7 w-7 bg-background hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteId(p.id);
                 }}
-                title="Delete"
+                title={t('common.delete')}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -211,12 +210,12 @@ export function ProjectGallery({ onSelect, onProjectsLoaded, header, className =
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-1 group/title truncate">
+                  <div className="flex items-center gap-1 truncate">
                     <h3 className="text-xs font-semibold truncate leading-tight">{p.name}</h3>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-4 w-4 opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0"
+                      className="h-4 w-4 text-muted-foreground hover:text-foreground shrink-0"
                       onClick={(e) => handleStartRename(e, p)}
                     >
                       <Pencil className="h-2.5 w-2.5" />
@@ -239,19 +238,18 @@ export function ProjectGallery({ onSelect, onProjectsLoaded, header, className =
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('io.gallery.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this project from the library? This action 
-              cannot be undone.
+              {t('io.gallery.deleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Project
+              {t('io.gallery.deleteConfirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

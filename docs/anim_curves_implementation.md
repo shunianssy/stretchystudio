@@ -1,48 +1,48 @@
-# Animation Curves Implementation
+# 动画曲线实现
 
-This document details the implementation of robust animation curve support (keyframe interpolation) in Stretchy Studio, covering the mathematical core, UI visualization, and the Spine 4.0 export pipeline.
+本文档详述 Stretchy Studio 中稳健动画曲线支持（关键帧插值）的实现，涵盖数学核心、UI 可视化以及 Spine 4.0 导出管线。
 
-## 1. Core Interpolation Engine (`animationEngine.js`)
+## 1. 核心插值引擎（`animationEngine.js`）
 
-The engine core was refactored from a simple linear lerp to a parametric Cubic Bezier evaluation system.
+引擎核心已从简单的线性 lerp 重构为参数化三次贝塞尔求值系统。
 
-### 1.1. Cubic Bezier Math
-Since standard Cubic Bezier curves (CSS-style) are defined as parametric curves $P(t) = (x(t), y(t))$, we must solve for $y$ given a specific $x$ (normalized time).
-- **Solver**: A 1D Cubic Bezier root-finder (`evaluateCubicBezier`) using binary search (12 iterations) to find the parametric $t$ that yields the target $x$, then returning the corresponding $y$.
-- **Control Points**:
-  - **Ease Both (Default)**: `[0.42, 0, 0.58, 1]` (Symmetric S-curve)
-  - **Ease In**: `[0.42, 0, 1, 1]` (Slow start, fast finish)
-  - **Ease Out**: `[0, 0, 0.58, 1]` (Fast start, slow finish)
-  - **Custom**: Supports arbitrary `[cx1, cy1, cx2, cy2]` arrays.
+### 1.1. 三次贝塞尔数学
+由于标准三次贝塞尔曲线（CSS 风格）定义为参数曲线 $P(t) = (x(t), y(t))$，我们必须针对给定的 $x$（归一化时间）求解 $y$。
+- **求解器**：一个一维三次贝塞尔求根器（`evaluateCubicBezier`），使用二分查找（12 次迭代）找到能得出目标 $x$ 的参数 $t$，然后返回对应的 $y$。
+- **控制点**：
+  - **Ease Both（默认）**：`[0.42, 0, 0.58, 1]`（对称 S 形曲线）
+  - **Ease In**：`[0.42, 0, 1, 1]`（慢入快出）
+  - **Ease Out**：`[0, 0, 0.58, 1]`（快入慢出）
+  - **Custom**：支持任意 `[cx1, cy1, cx2, cy2]` 数组。
 
-### 1.2. Discrete Interpolation
-- **Stepped**: The value is held constant at the starting keyframe's value until the playhead reaches the next keyframe.
-- **Linear**: Simple $v = a + (b-a)t$ interpolation.
-
----
-
-## 2. Timeline UI & Visualization (`TimelinePanel.jsx`)
-
-The timeline provides both control over and visual feedback for the selected interpolation mode.
-
-### 2.1. Radix Context Menu
-The keyframe context menu is implemented using **Radix UI ContextMenu**, which provides automatic viewport clamping (preventing the menu from clipping off-screen) and collision detection.
-- **Icons**: Action icons for Copy, Paste, and Remove.
-- **Curve Previews**: Each interpolation type (`Linear`, `Ease Both`, `Ease In`, `Ease Out`, `Stepped`) includes a small SVG `CurveIcon` demonstrating the motion profile.
-
-### 2.2. Background Transition Curves
-Track rows render a non-interactive SVG layer behind the keyframes:
-- **Interpolation Paths**: Curves are drawn from the bounding box of keyframe $A$ to keyframe $B$ using the easing type assigned to keyframe $A$.
-- **Loop Visualization**: If "Loop Keyframes" is enabled, a dashed semi-transparent curve is drawn from the final keyframe of a track back to the "phantom" loop keyframe at the animation's end duration.
+### 1.2. 离散插值
+- **Stepped（阶跃）**：值保持为起始关键帧的值恒定不变，直到播放头抵达下一个关键帧。
+- **Linear（线性）**：简单的 $v = a + (b-a)t$ 插值。
 
 ---
 
-## 3. Data Pipeline & Export (`exportSpine.js`)
+## 2. 时间轴 UI 与可视化（`TimelinePanel.jsx`）
 
-Animation curves are first-class citizens in the storage and export model.
+时间轴既提供对所选插值模式的控制，也提供其视觉反馈。
 
-### 3.1. Internal Data Model
-Keyframes now include an optional `easing` property:
+### 2.1. Radix 上下文菜单
+关键帧上下文菜单使用 **Radix UI ContextMenu** 实现，它提供了自动视口边界钳制（防止菜单被裁剪到屏幕外）以及碰撞检测。
+- **图标**：用于复制、粘贴和删除的操作图标。
+- **曲线预览**：每种插值类型（`Linear`、`Ease Both`、`Ease In`、`Ease Out`、`Stepped`）都带有一个小型 SVG `CurveIcon` 来演示其运动曲线。
+
+### 2.2. 背景过渡曲线
+轨道行会在关键帧后方渲染一个不可交互的 SVG 图层：
+- **插值路径**：曲线从关键帧 $A$ 的边界框绘制到关键帧 $B$，使用赋予关键帧 $A$ 的缓动类型。
+- **循环可视化**：如果启用了 “Loop Keyframes”，则会从轨道的最后一个关键帧绘制一条虚线半透明曲线，回到位于动画结束时长处的 “phantom” 循环关键帧。
+
+---
+
+## 3. 数据管线与导出（`exportSpine.js`）
+
+动画曲线在存储与导出模型中是一等公民。
+
+### 3.1. 内部数据模型
+关键帧现在包含一个可选的 `easing` 属性：
 ```json
 {
   "time": 1000,
@@ -51,17 +51,17 @@ Keyframes now include an optional `easing` property:
 }
 ```
 
-### 3.2. Spine 4.0 JSON Mapping
-Stretchy Studio's curve definitions map directly to the Spine 4.0 runtime spec:
-- **Stepped**: Exported as `curve: "stepped"`.
-- **Linear**: Omitted or exported as null (Spine's default).
-- **Bezier**: Exported as a 4-element array `curve: [cx1, cy1, cx2, cy2]`.
-- **Properties Supported**: Translate (X, Y), Rotate, Scale (X, Y), and Opacity (RGBA).
+### 3.2. Spine 4.0 JSON 映射
+Stretchy Studio 的曲线定义直接映射到 Spine 4.0 运行时规范：
+- **Stepped**：导出为 `curve: "stepped"`。
+- **Linear**：省略或导出为 null（Spine 的默认值）。
+- **Bezier**：导出为 4 元素数组 `curve: [cx1, cy1, cx2, cy2]`。
+- **支持的属性**：Translate（X、Y）、Rotate、Scale（X、Y）和 Opacity（RGBA）。
 
 ---
 
-## 4. Usage Summary
-1. Right-click any keyframe diamond in the timeline.
-2. Select an interpolation type from the menu.
-3. Observe the SVG transition line update in the timeline background.
-4. Export as Spine (4.0+) to utilize these curves in game engines (Unity, Unreal, etc.) or the Spine editor.
+## 4. 使用摘要
+1. 在时间轴中右键单击任意关键帧菱形。
+2. 从菜单中选择一种插值类型。
+3. 观察时间轴背景中 SVG 过渡线的更新。
+4. 导出为 Spine（4.0+），以便在游戏引擎（Unity、Unreal 等）或 Spine 编辑器中利用这些曲线。

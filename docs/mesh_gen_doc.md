@@ -1,51 +1,51 @@
-# Mesh Generation Logic
+# 网格生成逻辑
 
-This document distills the technical logic used in `stretchystudio` to generate a 2D mesh from a transparent image (RGBA data). The primary goal is to create a deformable mesh that closely tracks the opaque regions of an image while avoiding artifacts during deformation.
+本文档提炼了 `stretchystudio` 中用于从透明图像（RGBA 数据）生成 2D 网格的技术逻辑。主要目标是创建一个可变形网格，它能紧密贴合图像的不透明区域，同时避免变形期间产生伪影。
 
-## Core Pipeline
+## 核心管线
 
-The generation process is orchestrated in `src/mesh/generate.js` and follows these steps:
+生成过程在 `src/mesh/generate.js` 中编排，遵循以下步骤：
 
-### 1. Alpha Mask Dilation
-**Logic:** `dilateAlphaMask` in `src/mesh/contour.js`
-- **Binary Mask:** First, a binary mask is created: `1` if alpha >= threshold (typically 20), `0` otherwise.
-- **Morphological Dilation:** The mask is dilated by a small radius (default 2px). 
-- **Purpose:** Dilation expands the "opaque" zone outward. This ensures that the boundary vertices lie slightly outside the visual edges of the image. When the mesh is later deformed, this prevents "chord-shortcuts" (where a straight edge between mesh vertices might otherwise cut into the curved boundary of the image content). The image's original alpha channel handles the final transparency clipping during rendering.
+### 1. Alpha 蒙版膨胀
+**逻辑：** `src/mesh/contour.js` 中的 `dilateAlphaMask`
+- **二值蒙版**：首先创建二值蒙版：若 alpha >= 阈值（通常为 20）则为 `1`，否则为 `0`。
+- **形态学膨胀**：蒙版按一个小半径（默认 2px）膨胀。 
+- **目的**：膨胀使“不透明”区域向外扩展。这确保边界顶点略微位于图像视觉边缘之外。当网格之后被变形时，这能防止“弦捷径（chord-shortcuts）”（即网格顶点之间的直线边可能切入图像内容的弯曲边界）。图像原有的 alpha 通道会在渲染期间处理最终的透明度裁剪。
 
-### 2. Multi-Region Contour Tracing
-**Logic:** `traceAllContours` in `src/mesh/contour.js`
-- **Island Detection:** The algorithm scans the mask for "start" pixels (opaque pixels with a transparent neighbor to the left).
-- **Tracer:** For each island, it traces the boundary using a standard 8-connectivity Moore Neighborhood algorithm, keeping track of visited pixels to avoid re-tracing.
-- **Result:** A list of closed loops (contours) representing every separate opaque region in the image.
+### 2. 多区域轮廓追踪
+**逻辑：** `src/mesh/contour.js` 中的 `traceAllContours`
+- **岛屿检测**：算法扫描蒙版以寻找“起始”像素（左侧邻居为透明的不透明像素）。
+- **追踪器**：对每个岛屿，使用标准的 8 连通 Moore Neighborhood 算法追踪边界，并记录已访问像素以避免重复追踪。
+- **结果**：一个闭合环（轮廓）列表，表示图像中每一个独立的不透明区域。
 
-### 3. Edge Point Optimization
-**Logic:** `resampleContour` and `smoothContour` in `src/mesh/contour.js`
-- **Proportional Distribution:** A target number of edge points (e.g., 80) is distributed across all contours based on their relative perimeters. Larger regions get more boundary vertices.
-- **Arc-Length Resampling:** Raw pixel-traced borders are resampled so that vertices are spaced uniformly according to Euclidean distance.
-- **Smoothing:** Laplacian smoothing (neighbor-averaging) is applied to the boundary coordinates to reduce jitter and simplify the geometry.
+### 3. 边缘点优化
+**逻辑：** `src/mesh/contour.js` 中的 `resampleContour` 和 `smoothContour`
+- **按比例分配**：目标数量的边缘点（例如 80 个）依据各轮廓的相对周长分配。较大的区域会获得更多边界顶点。
+- **弧长重采样**：对原始像素追踪边界进行重采样，使顶点按照欧氏距离均匀分布。
+- **平滑**：对边界坐标应用拉普拉斯平滑（邻域平均），以减少抖动并简化几何。
 
-### 4. Interior Sampling
-**Logic:** `sampleInterior` and `filterByEdgePadding` in `src/mesh/sample.js`
-- **Jittered Grid:** Points are sampled inside the *original* alpha mask (not the dilated one) using a grid with a specified spacing (e.g., 30px). A random "jitter" is added to each point to avoid rigid grid-aligned artifacts.
-- **Edge Padding:** To prevent the formation of extremely thin/sliver triangles, any interior point within a certain distance (the `edgePadding`) of an edge point is discarded.
+### 4. 内部采样
+**逻辑：** `src/mesh/sample.js` 中的 `sampleInterior` 和 `filterByEdgePadding`
+- **抖动网格**：使用指定间距（例如 30px）的网格在*原始* alpha 蒙版（而非膨胀后的）内部采样点。对每个点添加随机“抖动”，以避免刚性的网格对齐伪影。
+- **边缘留白**：为防止形成极细/狭长三角形，任何距离边缘点小于特定值（`edgePadding`）的内部点都会被丢弃。
 
-### 5. Deduplication and Triangulation
-**Logic:** `triangulate` in `src/mesh/delaunay.js`
-- **Proximity Filter:** Points within a tiny radius (4.0 distance squared) of each other are merged.
-- **Delaunay Triangulation:** The final collection of points is passed to `delaunator`. This creates a robust triangulation that maximizes the minimum angle of the triangles, providing a stable structure for deformation.
+### 5. 去重与三角剖分
+**逻辑：** `src/mesh/delaunay.js` 中的 `triangulate`
+- **邻近过滤**：彼此距离小于极小半径（距离平方为 4.0）的点会被合并。
+- **Delaunay 三角剖分**：最终的点集被传给 `delaunator`。这会创建一种稳健的三角剖分，最大化三角形的最小角，为变形提供稳定的结构。
 
-### 6. UV and Data Mapping
-**Logic:** `src/mesh/generate.js`
-- **UV Generation:** Vertex coordinates are normalized by image dimensions to create UVs `[0, 1]`.
-- **Mesh Schema:** The final output is returned as:
-  - `vertices`: Array of `{x, y, restX, restY}` objects.
-  - `uvs`: Flat `Float32Array` of `[u0, v0, u1, v1...]`.
-  - `triangles`: Array of vertex index triplets `[i, j, k]`.
-  - `edgeIndices`: A `Set` of indices indicating which vertices belong to the boundary (used for specific physics/pinning logic).
+### 6. UV 与数据映射
+**逻辑：** `src/mesh/generate.js`
+- **UV 生成**：顶点坐标按图像尺寸归一化，生成 UV `[0, 1]`。
+- **网格 Schema**：最终输出返回为：
+  - `vertices`：`{x, y, restX, restY}` 对象数组。
+  - `uvs`：`[u0, v0, u1, v1...]` 的扁平 `Float32Array`。
+  - `triangles`：顶点索引三元组 `[i, j, k]` 数组。
+  - `edgeIndices`：一个 `Set`，表示哪些顶点属于边界（用于特定的物理/固定逻辑）。
 
-## Key Parameters
-- `alphaThreshold`: Sensitivity to transparency.
-- `gridSpacing`: Density of interior mesh points.
-- `numEdgePoints`: Density of boundary mesh points.
-- `edgePadding`: Buffer between border and interior.
-- `dilationRadius`: "Over-coverage" of the mesh relative to the image.
+## 关键参数
+- `alphaThreshold`：对透明度的敏感度。
+- `gridSpacing`：内部网格点的密度。
+- `numEdgePoints`：边界网格点的密度。
+- `edgePadding`：边界与内部之间的缓冲区。
+- `dilationRadius`：网格相对于图像的“过度覆盖”。

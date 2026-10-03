@@ -19,6 +19,7 @@
  */
 
 // Source: [ref][py-moc3] — format constants from reference file + py-moc3
+import { t } from '@/i18n';
 const MAGIC = [0x4D, 0x4F, 0x43, 0x33]; // "MOC3"
 const HEADER_SIZE = 64;
 const SOT_COUNT = 160;
@@ -261,7 +262,7 @@ class BinaryWriter {
     const encoder = new TextEncoder();
     const encoded = encoder.encode(s);
     if (encoded.length >= fieldSize) {
-      throw new Error(`String "${s}" too long for ${fieldSize}-byte field`);
+      throw new Error(t('io.errors.stringTooLong', { value: s, size: fieldSize }));
     }
     for (const byte of encoded) this._buf.push(byte);
     // Null-pad to fieldSize

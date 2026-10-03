@@ -11,6 +11,7 @@ import {
   FileUp, 
   Plus
 } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 export function LoadModal({
   open,
@@ -18,6 +19,7 @@ export function LoadModal({
   onLoadFromDb,
   onLoadFromFile,
 }) {
+  const { t } = useTranslation();
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -32,13 +34,13 @@ export function LoadModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2 border-b">
-          <DialogTitle>Load Project</DialogTitle>
+          <DialogTitle>{t('io.load.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 flex flex-col min-h-0">
           <div className="p-4 px-6 border-b bg-muted/10 shrink-0">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Project Library
+              {t('io.load.projectLibrary')}
             </h2>
           </div>
           
@@ -46,14 +48,14 @@ export function LoadModal({
             <ProjectGallery
               header={
                 <div
-                  className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group aspect-[4/3] bg-muted/20"
+                  className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors aspect-[4/3] bg-muted/20"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Plus className="h-6 w-6 text-primary" />
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                    <Plus className="h-5 w-5 text-primary" />
                   </div>
-                  <p className="text-xs font-semibold">Import Project</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Select .stretch file</p>
+                  <p className="text-xs font-semibold">{t('io.load.importProject')}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{t('io.load.selectStretchFile')}</p>
                   <input
                     type="file"
                     accept=".stretch"

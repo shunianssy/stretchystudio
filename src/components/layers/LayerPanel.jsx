@@ -13,6 +13,7 @@
  */
 import React, { useCallback, useState, useRef } from 'react';
 import { Eye, EyeOff, Copy, Trash2, FolderPlus, LogOut } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import {
@@ -67,6 +68,7 @@ function ChevronIcon({ open }) {
 /* ── DRAW ORDER Tab ──────────────────────────────────────────────────────── */
 
 function DepthTabRow({ node, parentGroup, isSelected, onSelect, onToggleVisible, onDragStart, onDragOver, onDrop, isDragOver }) {
+  const { t } = useTranslation(); // 子组件内单独订阅语言
   const isVisible = node.visible !== false;
 
   return (
@@ -102,7 +104,7 @@ function DepthTabRow({ node, parentGroup, isSelected, onSelect, onToggleVisible,
       {parentGroup && (
         <button
           className="shrink-0 text-[9px] px-1 py-0.5 rounded border border-primary/30 text-primary/70 bg-primary/10 hover:bg-primary/20 leading-none"
-          title={`In group: ${parentGroup.name}`}
+          title={t('panels.layers.inGroup', { name: parentGroup.name })}
           onClick={(e) => { e.stopPropagation(); onSelect(parentGroup.id); }}
         >
           {parentGroup.name}
@@ -113,7 +115,7 @@ function DepthTabRow({ node, parentGroup, isSelected, onSelect, onToggleVisible,
       <button
         className={`shrink-0 w-5 h-5 flex items-center justify-center rounded-sm hover:bg-foreground/10 transition-colors ${isVisible ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/40'}`}
         onClick={(e) => { e.stopPropagation(); onToggleVisible(node.id); }}
-        title={isVisible ? "Hide layer" : "Show layer"}
+        title={isVisible ? t('panels.layers.hideLayer') : t('panels.layers.showLayer')}
       >
         {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
       </button>
@@ -129,6 +131,7 @@ function GroupsTreeRow({
   onSelect, onToggleExpand, onToggleVisible,
   onDragStart, onDragOver, onDrop, isDragOver,
 }) {
+  const { t } = useTranslation(); // 子组件内单独订阅语言
   const indent = depth * 14;
   const isVisible = node.visible !== false;
 
@@ -180,7 +183,9 @@ function GroupsTreeRow({
       <button
         className={`shrink-0 w-5 h-5 flex items-center justify-center rounded-sm hover:bg-foreground/10 transition-colors ${isVisible ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/40'}`}
         onClick={(e) => { e.stopPropagation(); onToggleVisible(node.id); }}
-        title={isVisible ? (node.type === 'part' ? "Hide layer" : "Hide group") : (node.type === 'part' ? "Show layer" : "Show group")}
+        title={isVisible
+          ? (node.type === 'part' ? t('panels.layers.hideLayer') : t('panels.layers.hideGroup'))
+          : (node.type === 'part' ? t('panels.layers.showLayer') : t('panels.layers.showGroup'))}
       >
         {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
       </button>
@@ -192,6 +197,7 @@ function GroupsTreeRow({
 /* ── LayerPanel ───────────────────────────────────────────────────────────── */
 
 export function LayerPanel() {
+  const { t } = useTranslation(); // 组件顶层订阅语言，语言切换时重新渲染
   const nodes = useProjectStore(s => s.project.nodes);
   const updateProject = useProjectStore(s => s.updateProject);
   const createGroup = useProjectStore(s => s.createGroup);
@@ -351,7 +357,7 @@ export function LayerPanel() {
 
       {/* Tab bar */}
       <div className="flex items-center border-b shrink-0">
-        {['depth', 'groups'].filter(t => !wizardStep || t !== 'groups').map(tab => (
+        {['depth', 'groups'].filter(tabKey => !wizardStep || tabKey !== 'groups').map(tab => (
           <button
             key={tab}
             className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${activeLayerTab === tab
@@ -360,7 +366,7 @@ export function LayerPanel() {
               }`}
             onClick={() => setActiveLayerTab(tab)}
           >
-            {tab === 'depth' ? 'DRAW ORDER' : 'Groups'}
+            {tab === 'depth' ? t('panels.layers.tabDrawOrder') : t('panels.layers.tabGroups')}
           </button>
         ))}
       </div>
@@ -371,14 +377,14 @@ export function LayerPanel() {
           {/* Column headers */}
           <div className="flex items-center px-2 py-1 border-b text-[10px] text-muted-foreground font-medium shrink-0">
             <span className="w-3 mr-1" />
-            <span className="flex-1">Layer</span>
-            <span className="text-[10px] text-muted-foreground/50 ml-auto">Drag to reorder</span>
+            <span className="flex-1">{t('panels.layers.columnLayer')}</span>
+            <span className="text-[10px] text-muted-foreground/50 ml-auto">{t('panels.layers.dragToReorder')}</span>
           </div>
 
           {/* Layer list */}
           <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
             {depthRows.length === 0 ? (
-              <p className="text-xs text-muted-foreground p-3 text-center">No layers yet.</p>
+              <p className="text-xs text-muted-foreground p-3 text-center">{t('panels.layers.empty')}</p>
             ) : (
               depthRows.map(node => (
                 <ContextMenu key={node.id}>
@@ -405,13 +411,13 @@ export function LayerPanel() {
                       }, 0);
                     }}>
                       <FolderPlus className="w-4 h-4 mr-2 opacity-70" />
-                      New group with this
+                      {t('panels.layers.newGroupWithThis')}
                     </ContextMenuItem>
 
                     {node.parent && (
                       <ContextMenuItem onSelect={() => reparentNode(node.id, null)}>
                         <LogOut className="w-4 h-4 mr-2 opacity-70" />
-                        Remove from group
+                        {t('panels.layers.removeFromGroup')}
                       </ContextMenuItem>
                     )}
 
@@ -419,7 +425,7 @@ export function LayerPanel() {
 
                     <ContextMenuItem onSelect={() => duplicateNode(node.id)}>
                       <Copy className="w-4 h-4 mr-2 opacity-70" />
-                      Duplicate
+                      {t('common.duplicate')}
                     </ContextMenuItem>
 
                     <ContextMenuItem
@@ -440,7 +446,7 @@ export function LayerPanel() {
                       }}
                     >
                       <Trash2 className="w-4 h-4 mr-2 opacity-70" />
-                      Delete
+                      {t('common.delete')}
                     </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>
@@ -459,22 +465,22 @@ export function LayerPanel() {
               className="text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => createGroup('Group')}
             >
-              + Group
+              {t('panels.layers.addGroup')}
             </button>
             <button
               className="text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => createWarpDeformer()}
-              title="Create a warp deformer node (deforms child meshes via a lattice grid)"
+              title={t('panels.layers.createWarpTip')}
             >
-              + Warp
+              {t('panels.layers.addWarp')}
             </button>
-            <span className="text-[10px] text-muted-foreground/50 ml-auto">Drag to reparent</span>
+            <span className="text-[10px] text-muted-foreground/50 ml-auto">{t('panels.layers.dragToReparent')}</span>
           </div>
 
           {/* Tree */}
           <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
             {treeRows.length === 0 ? (
-              <p className="text-xs text-muted-foreground p-3 text-center">No layers yet.</p>
+              <p className="text-xs text-muted-foreground p-3 text-center">{t('panels.layers.empty')}</p>
             ) : (
               treeRows.map(({ node, depth }) => (
                 <ContextMenu key={node.id}>
@@ -503,13 +509,13 @@ export function LayerPanel() {
                       }, 0);
                     }}>
                       <FolderPlus className="w-4 h-4 mr-2 opacity-70" />
-                      New group with this
+                      {t('panels.layers.newGroupWithThis')}
                     </ContextMenuItem>
 
                     {node.parent && (
                       <ContextMenuItem onSelect={() => reparentNode(node.id, null)}>
                         <LogOut className="w-4 h-4 mr-2 opacity-70" />
-                        Remove from group
+                        {t('panels.layers.removeFromGroup')}
                       </ContextMenuItem>
                     )}
 
@@ -517,7 +523,7 @@ export function LayerPanel() {
 
                     <ContextMenuItem onSelect={() => duplicateNode(node.id)}>
                       <Copy className="w-4 h-4 mr-2 opacity-70" />
-                      Duplicate
+                      {t('common.duplicate')}
                     </ContextMenuItem>
 
                     <ContextMenuItem
@@ -538,7 +544,7 @@ export function LayerPanel() {
                       }}
                     >
                       <Trash2 className="w-4 h-4 mr-2 opacity-70" />
-                      Delete
+                      {t('common.delete')}
                     </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>

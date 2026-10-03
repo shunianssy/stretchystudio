@@ -15,6 +15,7 @@ import { packTextureAtlas } from './textureAtlas.js';
 import { generateCmo3 } from './cmo3writer.js';
 import { generateCan3 } from './can3writer.js';
 import { matchTag } from '../armatureOrganizer.js';
+import { t } from '@/i18n';
 
 /**
  * @typedef {Object} ExportOptions
@@ -44,7 +45,7 @@ export async function exportLive2D(project, images, opts = {}) {
   const zip = new JSZip();
 
   // --- Step 1: Pack textures ---
-  onProgress('Packing texture atlas...');
+  onProgress(t('io.progress.packingTextureAtlas'));
   const { atlases, regions } = await packTextureAtlas(project, images, { atlasSize });
 
   // Write atlas PNGs
@@ -59,7 +60,7 @@ export async function exportLive2D(project, images, opts = {}) {
   }
 
   // --- Step 2: Generate .moc3 ---
-  onProgress('Generating .moc3 binary...');
+  onProgress(t('io.progress.generatingMoc3'));
   const moc3Buffer = generateMoc3({
     project,
     regions,
@@ -98,7 +99,7 @@ export async function exportLive2D(project, images, opts = {}) {
 
   const motionFiles = [];
   if (exportMotions && project.animations?.length > 0) {
-    onProgress('Generating motion files...');
+    onProgress(t('io.progress.generatingMotions'));
     const motionFolder = zip.folder('motion');
 
     for (const anim of project.animations) {
@@ -111,7 +112,7 @@ export async function exportLive2D(project, images, opts = {}) {
   }
 
   // --- Step 4: Generate .cdi3.json ---
-  onProgress('Generating display info...');
+  onProgress(t('io.progress.generatingDisplayInfo'));
   const groups = project.nodes.filter(n => n.type === 'group');
   const meshParts = project.nodes.filter(n =>
     n.type === 'part' && n.mesh && n.visible !== false && regions.has(n.id)
@@ -133,7 +134,7 @@ export async function exportLive2D(project, images, opts = {}) {
   zip.file(cdi3File, JSON.stringify(cdi3, null, '\t'));
 
   // --- Step 5: Generate .model3.json ---
-  onProgress('Generating model manifest...');
+  onProgress(t('io.progress.generatingModelManifest'));
   const model3 = generateModel3Json({
     modelName,
     textureFiles,
@@ -144,7 +145,7 @@ export async function exportLive2D(project, images, opts = {}) {
   zip.file(`${modelName}.model3.json`, JSON.stringify(model3, null, '\t'));
 
   // --- Step 6: Package ZIP ---
-  onProgress('Creating ZIP...');
+  onProgress(t('io.progress.creatingZip'));
   return zip.generateAsync({ type: 'blob' });
 }
 
@@ -185,7 +186,7 @@ export async function exportLive2DProject(project, images, opts = {}) {
     )
     .sort((a, b) => (b.draw_order ?? 0) - (a.draw_order ?? 0));
 
-  onProgress(`Preparing ${meshParts.length} meshes...`);
+  onProgress(t('io.progress.preparingMeshes', { count: meshParts.length }));
 
   // Collect groups (for part hierarchy + deformers in .cmo3)
   const groups = project.nodes.filter(n => n.type === 'group').map(g => ({
@@ -211,7 +212,7 @@ export async function exportLive2DProject(project, images, opts = {}) {
     const fullH = img.naturalHeight || img.height;
     if (fullW === 0 || fullH === 0) continue;
 
-    onProgress(`Encoding texture ${i + 1}/${meshParts.length}...`);
+    onProgress(t('io.progress.encodingTexture', { current: i + 1, total: meshParts.length }));
 
     // For .cmo3: render full canvas-sized PNG (CLayeredImage covers entire canvas)
     // Mesh vertices and textures are already in canvas space (PSD layers are canvas-sized)
@@ -294,12 +295,12 @@ export async function exportLive2DProject(project, images, opts = {}) {
     const texCount = images.size;
     throw new Error(
       partCount === 0
-        ? 'No visible parts with meshes found. Generate meshes before exporting.'
-        : `Found ${partCount} parts but no matching textures (${texCount} textures loaded). Check that parts have textureId matching a texture.`
+        ? t('io.errors.noVisibleMeshes')
+        : t('io.errors.noMatchingTextures', { parts: partCount, textures: texCount })
     );
   }
 
-  onProgress(`Generating .cmo3 (${meshes.length} meshes)...`);
+  onProgress(t('io.progress.generatingCmo3', { count: meshes.length }));
 
   const warpDeformerNodes = project.nodes.filter(n => n.type === 'warpDeformer');
 
@@ -331,7 +332,7 @@ export async function exportLive2DProject(project, images, opts = {}) {
     zip.file(cmo3FileName, cmo3);
 
     if (hasAnimations) {
-      onProgress('Generating .can3 animation...');
+      onProgress(t('io.progress.generatingCan3'));
       const can3 = await generateCan3({
         animations, deformerParamMap, cmo3FileName, canvasW, canvasH, modelName,
       });

@@ -1,38 +1,38 @@
-# TBLR (Top-Bottom-Left-Right) Split Implementation
+# TBLR（Top-Bottom-Left-Right）拆分实现
 
-This document provides a technical breakdown of how the See-through framework handles the semantic splitting of layers into Left/Right and Depth-based components (TBLR).
+本文档对 See-through 框架如何将图层语义化拆分为左/右以及基于深度的组件（TBLR）进行技术剖析。
 
-## Overview
+## 概述
 
-The "TBLR split" is a heuristic post-processing stage used to further decompose semantically identified layers (like "eyes" or "handwear") into distinct sub-layers suitable for Live2D rigging. While the primary model identifies "handwear" as a single semantic class, the TBLR logic separates the left hand from the right hand based on spatial connectivity and coordinates.
+“TBLR 拆分”是一个启发式后处理阶段，用于进一步将语义识别出的图层（如 “eyes” 或 “handwear”）分解为适合 Live2D 绑定的独立子图层。虽然主模型将 “handwear” 识别为单一的语义类别，但 TBLR 逻辑会基于空间连通性与坐标将左手与右手分离。
 
-## Key Implementation Files
+## 关键实现文件
 
-- **[common/utils/inference_utils.py](file:///home/fiery/seethrough-repo/common/utils/inference_utils.py)**: Contains the core mathematical and image processing logic.
-- **[inference/scripts/heuristic_partseg.py](file:///home/fiery/seethrough-repo/inference/scripts/heuristic_partseg.py)**: Provides a CLI interface for running these splits on existing PSD files.
+- **[common/utils/inference_utils.py](file:///home/fiery/seethrough-repo/common/utils/inference_utils.py)**：包含核心的数学与图像处理逻辑。
+- **[inference/scripts/heuristic_partseg.py](file:///home/fiery/seethrough-repo/inference/scripts/heuristic_partseg.py)**：提供一个 CLI 接口，用于在已有的 PSD 文件上执行这些拆分。
 
 ---
 
-## Core Logic: Left-Right Split (`seg_wlr`)
+## 核心逻辑：左右拆分（`seg_wlr`）
 
-The Left-Right split is primarily used for symmetric body parts.
+左右拆分主要用于对称的身体部位。
 
-### 1. Connected Component Analysis
-The system uses `cv2.connectedComponentsWithStats` to analyze the alpha mask of a layer. It identifies all spatially isolated "islands" of pixels.
+### 1. 连通分量分析
+系统使用 `cv2.connectedComponentsWithStats` 分析图层的 alpha 蒙版。它识别出所有空间上孤立的像素“岛屿”。
 
 ```python
 num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
     mask.astype(np.uint8) * 255, connectivity=8)
 ```
 
-### 2. Cluster Selection and Ordering
-If multiple clusters are detected, the system:
-1.  Filters out the background (cluster 0).
-2.  Sorts remaining clusters by area (`stats[..., -1]`) to identify the two most significant parts (e.g., the two gloves).
-3.  Passes the top two clusters to `label_lr_split`.
+### 2. 聚类选择与排序
+如果检测到多个聚类，系统会：
+1.  过滤掉背景（聚类 0）。
+2.  按面积（`stats[..., -1]`）对其余聚类排序，以识别两个最主要的部分（例如两只手套）。
+3.  将排名前两位的聚类传给 `label_lr_split`。
 
-### 3. Spatial Designation (`label_lr_split`)
-The centroids of the two clusters are compared. The cluster with the **lower X-coordinate** is designated as the character's right-side part (which appears on the left side of the image from the viewer's perspective), and vice-versa.
+### 3. 空间指定（`label_lr_split`）
+比较两个聚类的质心。**X 坐标较小**的聚类被指定为角色的右侧部位（从观看者视角看位于图像左侧），反之亦然。
 
 ```python
 def label_lr_split(labels, stats, id1, id2):
@@ -44,41 +44,41 @@ def label_lr_split(labels, stats, id1, id2):
         return label1, label2, stats1, stats2
 ```
 
-### 4. Extraction and Naming
-The split parts are cropped to their individual bounding boxes and saved with suffixes:
-- `-l`: Left (Viewer's right)
-- `-r`: Right (Viewer's left)
+### 4. 提取与命名
+拆分出的部件被裁剪到各自的包围盒，并以如下后缀保存：
+- `-l`：左侧（观看者的右侧）
+- `-r`：右侧（观看者的左侧）
 
 ---
 
-## Specialized Handling
+## 特殊处理
 
-### Eyes and Facial Features
-For facial components, the logic is more granular. In the `v3` pipeline, the following tags are automatically passed through the LR-split logic:
+### 眼睛与面部特征
+对于面部组件，逻辑更为细致。在 `v3` 管线中，以下标签会自动经过 LR 拆分逻辑：
 - `eyewhite`
 - `irides`
 - `eyelash`
 - `eyebrow`
 - `ears`
 
-There is also a fallback for a combined `eyes` layer ([L452 in inference_utils.py](file:///home/fiery/seethrough-repo/common/utils/inference_utils.py#L452)) that attempt to extract four parts (`eyer`, `eyel`, `browr`, `browl`) by assuming the four largest connected components are the two eyes and two brows.
+对于合并的 `eyes` 图层还有一个回退方案（[inference_utils.py 第 452 行](file:///home/fiery/seethrough-repo/common/utils/inference_utils.py#L452)），它通过假设四个最大的连通分量就是两只眼睛和两条眉毛，来尝试提取四个部件（`eyer`、`eyel`、`browr`、`browl`）。
 
-### Hair Depth Splitting (`cluster_inpaint_part`)
-While not strictly a "Left-Right" split, the hair is often split into **front** and **back** using depth-based clustering. 
-The system uses K-Means clustering on the depth map values within the hair mask to separate "Front Hair" from "Back Hair" based on their median depth values.
+### 头发深度拆分（`cluster_inpaint_part`）
+虽然严格来说不算“左右”拆分，但头发常使用基于深度的聚类拆分为 **前发** 与 **后发**。
+系统对头发蒙版内的深度图数值使用 K-Means 聚类，依据中位深度值将 “Front Hair” 与 “Back Hair” 分离。
 
 ---
 
-## Usage
+## 用法
 
-### Integration in Main Pipeline
-The split is triggered by the `--tblr_split` flag in `inference_psd.py`:
+### 集成到主管线
+拆分由 `inference_psd.py` 中的 `--tblr_split` 标志触发：
 ```bash
 python inference/scripts/inference_psd.py --srcp assets/test_image.png --tblr_split
 ```
 
-### Manual Trigger on PSD
-You can selectively split layers in an existing PSD:
+### 在 PSD 上手动触发
+你可以选择性地拆分已有 PSD 中的图层：
 ```bash
 # Split handwear into left and right
 python inference/scripts/heuristic_partseg.py seg_wlr --srcp workspace/output/sample.psd --target_tags handwear
@@ -89,6 +89,6 @@ python inference/scripts/heuristic_partseg.py seg_wdepth --srcp workspace/output
 
 ---
 
-## Limitations
-- **Occlusion**: If two symmetric parts overlap (e.g., one hand over the other), they may be detected as a single connected component, causing the LR split to fail or result in only one layer.
-- **Complexity**: Highly complex accessories with multiple floating parts may result in too many connected components, leading the heuristic to only pick the two largest ones.
+## 局限性
+- **遮挡**：如果两个对称部件发生重叠（例如一只手叠在另一只手上），它们可能被检测为单个连通分量，导致 LR 拆分失败或只得到一个图层。
+- **复杂度**：带有多个漂浮部件的高度复杂饰品可能产生过多的连通分量，导致启发式算法只挑出最大的两个。

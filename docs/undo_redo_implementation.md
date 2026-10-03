@@ -1,22 +1,22 @@
-# Undo/Redo System Implementation
+# 撤销/重做系统实现
 
-## Overview
+## 概述
 
-The Undo/Redo system enables users to revert and restore changes to the animation project through snapshot-based history management. Every undoable mutation flows through a single injection point (`updateProject` in projectStore.js), where snapshots are automatically captured. Continuous operations (drag, slider scrub) are batched to suppress intermediate snapshots, ensuring Ctrl+Z jumps to meaningful states.
+撤销/重做系统通过基于快照的历史管理，使用户能够回退和恢复动画项目的更改。每个可撤销的变更都流经单一注入点（projectStore.js 中的 `updateProject`），在此自动捕获快照。连续操作（拖动、滑块刮擦）会被批处理以抑制中间快照，确保 Ctrl+Z 跳转到有意义的状态。
 
-**Status**: Complete (M7 feature)  
-**Implementation Date**: 2026-04-17  
-**Files Modified**: 7 | **Files Created**: 1
+**状态**：完成（M7 功能）  
+**实现日期**：2026-04-17  
+**修改文件数**：7 | **新建文件数**：1
 
 ---
 
-## Architecture
+## 架构
 
-### Core Insight
+### 核心洞见
 
-Every mutation in the app flows through `updateProject(recipe, opts)` in `projectStore.js`. Rather than tracking 30+ individual call sites, we auto-snapshot inside `updateProject` before each mutation. Add a `beginBatch` / `endBatch` mechanism for continuous drag/slider operations so only one snapshot is captured per gesture, not one per frame.
+应用中的每个变更都流经 `projectStore.js` 中的 `updateProject(recipe, opts)`。我们不必追踪 30 多个单独的调用点，而是在 `updateProject` 内部、每次变更之前自动快照。为连续拖动/滑块操作添加 `beginBatch` / `endBatch` 机制，使每次手势只捕获一个快照，而非每帧一个。
 
-### History Mechanism
+### 历史机制
 
 ```
 [User Action]
@@ -37,7 +37,7 @@ Every mutation in the app flows through `updateProject(recipe, opts)` in `projec
   └─ applyFn(snapshot)                           [restore project state]
 ```
 
-### Batching for Continuous Operations
+### 连续操作的批处理
 
 ```
 [User starts slider drag]
@@ -52,75 +52,75 @@ Every mutation in the app flows through `updateProject(recipe, opts)` in `projec
 Result: One snapshot for entire drag gesture, Ctrl+Z jumps to pre-drag state.
 ```
 
-### No Circular Dependencies
+### 无循环依赖
 
-- `src/store/undoHistory.js` is pure JS with zero imports from the store or React
-- `src/store/projectStore.js` imports `pushSnapshot`, `isBatching`, `clearHistory` from undoHistory
-- `src/hooks/useUndoRedo.js` imports `undo`, `redo` from undoHistory
-- `src/components/*` import `beginBatch`, `endBatch` from undoHistory as needed
+- `src/store/undoHistory.js` 是纯 JS，对 store 或 React 零导入
+- `src/store/projectStore.js` 从 undoHistory 导入 `pushSnapshot`、`isBatching`、`clearHistory`
+- `src/hooks/useUndoRedo.js` 从 undoHistory 导入 `undo`、`redo`
+- `src/components/*` 按需从 undoHistory 导入 `beginBatch`、`endBatch`
 
 ---
 
-## Implementation Details
+## 实现细节
 
-### 1. Core Module: `src/store/undoHistory.js`
+### 1. 核心模块：`src/store/undoHistory.js`
 
-**Purpose**: Pure JS module managing undo/redo history stacks and batch operations.
+**用途**：管理撤销/重做历史栈和批处理操作的纯 JS 模块。
 
-**State**:
+**状态**：
 ```javascript
 let _snapshots = [];   // Past project snapshots (max 50)
 let _redoStack  = [];  // Redo stack
 let _batchDepth = 0;   // >0 means inside a continuous gesture
 ```
 
-**Key Functions**:
+**关键函数**：
 
 #### `pushSnapshot(project)`
-- Deep clones the project using `structuredClone()` (preserves Float32Array, Set, Map)
-- Pushes to `_snapshots` array (kept to MAX_HISTORY=50)
-- Clears `_redoStack` (any new mutation after undo invalidates redo history)
+- 使用 `structuredClone()` 深克隆项目（保留 Float32Array、Set、Map）
+- 推入 `_snapshots` 数组（保留至 MAX_HISTORY=50）
+- 清空 `_redoStack`（撤销后的任何新变更都会使重做历史失效）
 
-**Critical detail**: Uses `structuredClone()` not `JSON.parse(JSON.stringify())` because:
-- Float32Array (used for mesh UVs) becomes `{}` when JSON serialized — undo would lose all texture coordinates
-- structuredClone correctly preserves all typed array data
+**关键细节**：使用 `structuredClone()` 而非 `JSON.parse(JSON.stringify())`，因为：
+- Float32Array（用于网格 UV）在 JSON 序列化时会变成 `{}` —— 撤销会丢失所有贴图坐标
+- structuredClone 正确保留所有类型化数组数据
 
 #### `beginBatch(project)`
-- If `_batchDepth === 0`, capture one snapshot
-- Increment `_batchDepth` to mark we're inside a continuous gesture
-- Subsequent `updateProject` calls see `isBatching() === true` and skip snapshots
+- 若 `_batchDepth === 0`，捕获一个快照
+- 递增 `_batchDepth` 以标记我们处于连续手势内
+- 后续 `updateProject` 调用会看到 `isBatching() === true` 并跳过快照
 
 #### `endBatch()`
-- Decrement `_batchDepth` safely (never goes negative)
-- Once 0, next `updateProject` will snapshot again
+- 安全地递减 `_batchDepth`（永不变为负数）
+- 一旦为 0，下次 `updateProject` 将再次快照
 
 #### `isBatching()`
-- Returns `true` if `_batchDepth > 0` (used by projectStore to skip snapshots)
+- 若 `_batchDepth > 0` 则返回 `true`（供 projectStore 跳过快照）
 
 #### `undo(currentProject, applyFn)`
-- Pop from `_snapshots` array (if available)
-- Push `currentProject` to `_redoStack` for redo capability
-- Call `applyFn(snapshot)` to restore project state
+- 从 `_snapshots` 数组弹出（若有）
+- 将 `currentProject` 推入 `_redoStack` 以支持重做
+- 调用 `applyFn(snapshot)` 恢复项目状态
 
 #### `redo(currentProject, applyFn)`
-- Pop from `_redoStack` (if available)
-- Push `currentProject` to `_snapshots` (it becomes the new "past" state)
-- Call `applyFn(snapshot)` to restore project state
+- 从 `_redoStack` 弹出（若有）
+- 将 `currentProject` 推入 `_snapshots`（它成为新的“过去”状态）
+- 调用 `applyFn(snapshot)` 恢复项目状态
 
 #### `clearHistory()`
-- Wipe all history on project load/reset so stale history doesn't leak
-- Called in `loadProject()` and `resetProject()` to prevent undo beyond the new project boundary
+- 在项目载入/重置时清除所有历史，使陈旧历史不会泄漏
+- 在 `loadProject()` 和 `resetProject()` 中调用，以防止跨越新项目边界进行撤销
 
 ---
 
-### 2. Injection Point: `src/store/projectStore.js`
+### 2. 注入点：`src/store/projectStore.js`
 
-**Import**:
+**导入**：
 ```javascript
 import { pushSnapshot, isBatching, clearHistory } from '@/store/undoHistory';
 ```
 
-**Modified updateProject signature**:
+**修改后的 updateProject 签名**：
 ```javascript
 updateProject: (recipe, { skipHistory = false } = {}) => {
   set((state) => {
@@ -134,25 +134,25 @@ updateProject: (recipe, { skipHistory = false } = {}) => {
 }
 ```
 
-**Logic**:
-- Before applying the recipe, check if we should snapshot
-- Skip if `skipHistory: true` (used when applying undo/redo — prevents double-snapshot)
-- Skip if `isBatching()` is true (continuous gesture in progress)
-- Only auto-snapshot for discrete mutations
+**逻辑**：
+- 应用 recipe 之前，检查是否应快照
+- 若 `skipHistory: true` 则跳过（在应用撤销/重做时使用 —— 防止双重快照）
+- 若 `isBatching()` 为 true 则跳过（连续手势进行中）
+- 仅对离散变更自动快照
 
-**Called in**:
-- `resetProject()`: Calls `clearHistory()` first
-- `loadProject()`: Calls `clearHistory()` first
+**调用处**：
+- `resetProject()`：先调用 `clearHistory()`
+- `loadProject()`：先调用 `clearHistory()`
 
-**Callers remain unchanged**: All existing `updateProject(recipe)` calls work as before (no second argument, defaults to `{ skipHistory: false })`
+**调用方保持不变**：所有现有的 `updateProject(recipe)` 调用照常工作（无第二个参数，默认为 `{ skipHistory: false }`）
 
 ---
 
-### 3. Keyboard Handler: `src/hooks/useUndoRedo.js`
+### 3. 键盘处理器：`src/hooks/useUndoRedo.js`
 
-**REWRITTEN** to use undoHistory module instead of inline snapshot arrays.
+**已重写**，改用 undoHistory 模块而非内联快照数组。
 
-**Key pattern**:
+**关键模式**：
 ```javascript
 import { undo, redo } from '@/store/undoHistory';
 
@@ -199,18 +199,18 @@ export function useUndoRedo() {
 }
 ```
 
-**Important detail**: `skipHistory: true` prevents the undo/redo application itself from pushing another snapshot. Without this, applying a snapshot would trigger `pushSnapshot()` and create a new history entry, breaking the undo chain.
+**重要细节**：`skipHistory: true` 防止撤销/重做的应用本身推入另一个快照。否则，应用快照会触发 `pushSnapshot()` 并创建新的历史条目，破坏撤销链。
 
 ---
 
-### 4. Batching Slider Changes: `src/components/inspector/Inspector.jsx`
+### 4. 批处理滑块更改：`src/components/inspector/Inspector.jsx`
 
-**Import**:
+**导入**：
 ```javascript
 import { beginBatch, endBatch } from '@/store/undoHistory';
 ```
 
-**Modified SliderRow**:
+**修改后的 SliderRow**：
 ```javascript
 function SliderRow({ label, value, min, max, step = 1, onChange, help }) {
   return (
@@ -232,27 +232,27 @@ function SliderRow({ label, value, min, max, step = 1, onChange, help }) {
 }
 ```
 
-**Effect**:
-- User touches slider thumb → `onPointerDown` captures one snapshot
-- User drags slider → rapid onChange calls → `updateProject` sees `isBatching() === true` → skip snapshots
-- User releases slider → `onPointerUp` ends batch
-- Result: Ctrl+Z jumps to the opacity before the drag started
+**效果**：
+- 用户触碰滑块拇指 → `onPointerDown` 捕获一个快照
+- 用户拖动滑块 → 快速 onChange 调用 → `updateProject` 看到 `isBatching() === true` → 跳过快照
+- 用户松开滑块 → `onPointerUp` 结束批处理
+- 结果：Ctrl+Z 跳转到拖动开始前的不透明度
 
-**Applies to**:
-- Opacity slider
-- Blend shape influence sliders
-- Mesh offset sliders (deformer settings)
+**适用于**：
+- 不透明度滑块
+- 混合变形影响强度滑块
+- 网格偏移滑块（变形器设置）
 
 ---
 
-### 5. Batching Gizmo Drags: `src/components/canvas/GizmoOverlay.jsx`
+### 5. 批处理 Gizmo 拖动：`src/components/canvas/GizmoOverlay.jsx`
 
-**Import**:
+**导入**：
 ```javascript
 import { beginBatch, endBatch } from '@/store/undoHistory';
 ```
 
-**Pattern in drag handlers** (startMoveDrag, startRotateDrag, startPivotDrag):
+**拖动处理器中的模式**（startMoveDrag、startRotateDrag、startPivotDrag）：
 ```javascript
 const startMoveDrag = useCallback((e, nodeId) => {
   if (editorModeRef.current === 'staging') {
@@ -278,22 +278,22 @@ const onDragEnd = useCallback(() => {
 }, []);
 ```
 
-**Effect**:
-- User grabs gizmo handle → `beginBatch()` captures snapshot (only in staging mode)
-- Gizmo drag fires 60+ pointermove events → all `updateProject` calls use `skipHistory: true` and see `isBatching() === true` → skip snapshots
-- User releases → `endBatch()`
-- Result: Ctrl+Z jumps to pre-drag position, not intermediate positions
+**效果**：
+- 用户抓住 gizmo 手柄 → `beginBatch()` 捕获快照（仅 Staging 模式）
+- Gizmo 拖动触发 60+ pointermove 事件 → 所有 `updateProject` 调用使用 `skipHistory: true` 并看到 `isBatching() === true` → 跳过快照
+- 用户松开 → `endBatch()`
+- 结果：Ctrl+Z 跳转到拖动前位置，而非中间位置
 
 ---
 
-### 6. Batching Skeleton Drags: `src/components/canvas/SkeletonOverlay.jsx`
+### 6. 批处理骨架拖动：`src/components/canvas/SkeletonOverlay.jsx`
 
-**Import**:
+**导入**：
 ```javascript
 import { beginBatch, endBatch } from '@/store/undoHistory';
 ```
 
-**Drag pattern**:
+**拖动模式**：
 ```javascript
 const onPointerDown = useCallback((e, nodeId) => {
   if (editorModeRef.current === 'staging') {
@@ -319,20 +319,20 @@ const onPointerUp = useCallback(() => {
 }, []);
 ```
 
-**Applies to**:
-- Bone rotation drags (trackpad rotate, arc handle rotation)
-- Bone position drags (skeletal rig)
+**适用于**：
+- 骨骼旋转拖动（触控板旋转、弧线手柄旋转）
+- 骨骼位置拖动（骨架绑定）
 
 ---
 
-### 7. Batching Timeline Drags: `src/components/timeline/TimelinePanel.jsx`
+### 7. 批处理时间轴拖动：`src/components/timeline/TimelinePanel.jsx`
 
-**Import**:
+**导入**：
 ```javascript
 import { beginBatch, endBatch } from '@/store/undoHistory';
 ```
 
-**Keyframe drag pattern** (~line 790):
+**关键帧拖动模式**（约第 790 行）：
 ```javascript
 const onKeyframePointerDown = useCallback((e, nodeId, keyframeTime) => {
   beginBatch(useProjectStore.getState().project);
@@ -356,7 +356,7 @@ const onKeyframePointerDown = useCallback((e, nodeId, keyframeTime) => {
 }, []);
 ```
 
-**Audio track drag pattern**:
+**音频轨道拖动模式**：
 ```javascript
 const handleBarDrag = (e) => {
   beginBatch(useProjectStore.getState().project);
@@ -380,53 +380,53 @@ const handleBarDrag = (e) => {
 
 ---
 
-## Problems Encountered and Fixed
+## 遇到的问题及修复
 
-### Problem 1: Mesh Undo Glitch (GPU Buffer Lag)
+### 问题 1：网格撤销故障（GPU 缓冲滞后）
 
-**Symptom**: After undoing a mesh deformation (blend shape drag, bone rotation), the app flickered between the undone state (mesh back to original) and the deformed state when the user selected or deselected the layer.
+**症状**：撤销网格变形（混合变形拖动、骨骼旋转）后，当用户选中或取消选中图层时，应用会在撤销后的状态（网格回到原始）与变形状态之间闪烁。
 
-**Root Cause**: One-frame lag in GPU buffer synchronization.
+**根因**：GPU 缓冲同步存在一帧滞后。
 
-The flow was:
-1. User undoes deformation → project state reverted (mesh UVs back to original)
-2. `sceneRef.current.draw()` called with reverted project
-3. Draw command uses the **previous frame's GPU mesh vertices** (still deformed)
-4. **After** draw completes, `sceneRef.current.parts.uploadPositions()` is called
-5. GPU buffer now has correct (un-deformed) vertices, but they weren't used in this frame's render
-6. Next frame rendered with correct vertices
-7. User clicks to select/deselect layer → triggers dirty flag → scene re-renders
-8. Now render uses correct GPU buffer → layer looks normal
+流程为：
+1. 用户撤销变形 → 项目状态回退（网格 UV 回到原始）
+2. 以回退后的项目调用 `sceneRef.current.draw()`
+3. 绘制命令使用**上一帧的 GPU 网格顶点**（仍是变形状态）
+4. 绘制**完成后**，才调用 `sceneRef.current.parts.uploadPositions()`
+5. GPU 缓冲现在有正确（未变形）顶点，但它们未用于本帧渲染
+6. 下一帧以正确顶点渲染
+7. 用户点击选中/取消选中图层 → 触发 dirty 标志 → 场景重新渲染
+8. 现在渲染使用正确的 GPU 缓冲 → 图层看起来正常
 
-The flicker was frame: render with old GPU buffer (deformed) then render with new buffer (un-deformed).
+闪烁就是：先用旧 GPU 缓冲渲染（变形），再用新缓冲渲染（未变形）。
 
-**Solution**: Reorder GPU mesh upload to occur **BEFORE** the draw call in `src/components/canvas/CanvasViewport.jsx` (around line 341).
+**解决方案**：在 `src/components/canvas/CanvasViewport.jsx`（约第 341 行）中将 GPU 网格上传重排到绘制调用**之前**。
 
-**Before**:
+**修改前**：
 ```javascript
 // Line 341 (rAF tick)
 sceneRef.current.draw(...);
 sceneRef.current.parts.uploadPositions();  // ← happens after draw
 ```
 
-**After**:
+**修改后**：
 ```javascript
 // Line 341 (rAF tick)
 sceneRef.current.parts.uploadPositions();  // ← happens before draw
 sceneRef.current.draw(...);
 ```
 
-**Effect**: GPU buffer is synchronized within the same frame as the draw call. No one-frame lag, no flickering on undo.
+**效果**：GPU 缓冲与绘制调用在同一帧内同步。无单帧滞后，撤销时无闪烁。
 
 ---
 
-### Problem 2: Texture Invisibility After Mesh Undo
+### 问题 2：网格撤销后贴图不可见
 
-**Symptom**: When undoing a mesh deformation, the entire layer became invisible (no texture visible, only vertices and skeleton visible). When saving and reloading the project, no textures loaded at all — all layers were invisible except the skeleton overlay.
+**症状**：撤销网格变形时，整个图层变得不可见（看不到贴图，只能看到顶点和骨架）。保存并重新载入项目时，根本载入不了任何贴图 —— 除骨架叠加层外所有图层都不可见。
 
-**Root Cause**: Typed array corruption during snapshot serialization.
+**根因**：快照序列化期间类型化数组损坏。
 
-The original undoHistory.js used `JSON.parse(JSON.stringify(project))` for snapshots:
+最初的 undoHistory.js 使用 `JSON.parse(JSON.stringify(project))` 生成快照：
 ```javascript
 // BUGGY CODE:
 export function pushSnapshot(project) {
@@ -435,25 +435,25 @@ export function pushSnapshot(project) {
 }
 ```
 
-When a Float32Array (used for mesh UVs) is JSON serialized:
+当 Float32Array（用于网格 UV）被 JSON 序列化时：
 ```javascript
 const uvs = new Float32Array([0.0, 0.0, 1.0, 1.0]);
 JSON.stringify({ uvs });  // → {"uvs":{}}  (empty object!)
 JSON.parse('{"uvs":{}}');  // → { uvs: {} }
 ```
 
-After undo, `node.mesh.uvs` was an empty object `{}` instead of Float32Array. Texture sampling code expected:
+撤销后，`node.mesh.uvs` 变成了空对象 `{}` 而非 Float32Array。贴图采样代码期望的是：
 ```javascript
 // In shader/sampling code:
 const u = uvs[index * 2];      // ← trying to index an object!
 const v = uvs[index * 2 + 1];  // ← results in undefined
 ```
 
-Texture coordinates became undefined, texture sampling failed, layer became invisible.
+贴图坐标变为 undefined，贴图采样失败，图层变得不可见。
 
-When saving to file, the empty object was written to disk. On reload, no UV data was available, textures couldn't load.
+保存到文件时，空对象被写入磁盘。重新载入时没有可用的 UV 数据，贴图无法载入。
 
-**Solution**: Replace all three `JSON.parse(JSON.stringify(...))` calls in `src/store/undoHistory.js` with `structuredClone(...)`:
+**解决方案**：将 `src/store/undoHistory.js` 中所有三处 `JSON.parse(JSON.stringify(...))` 调用替换为 `structuredClone(...)`：
 
 ```javascript
 // Line 19 - pushSnapshot()
@@ -480,44 +480,44 @@ export function redo(currentProject, applyFn) {
 }
 ```
 
-**Why structuredClone works**:
-- Correctly handles Float32Array, Uint8Array, Set, Map, Date, and other typed data
-- Deep clones nested objects and arrays
-- Preserves object identity for circular references
-- No JSON serialization — no enumerable-property limitation
+**为何 structuredClone 可行**：
+- 正确处理 Float32Array、Uint8Array、Set、Map、Date 及其他类型化数据
+- 深克隆嵌套对象和数组
+- 为循环引用保留对象标识
+- 无 JSON 序列化 —— 没有可枚举属性的限制
 
-**Effect**: Undo/redo now correctly preserves all mesh data, texture coordinates remain valid, layers stay visible after undo.
+**效果**：撤销/重做现在正确保留所有网格数据，贴图坐标保持有效，撤销后图层保持可见。
 
 ---
 
-## What Is and Isn't Undoable
+## 什么可撤销，什么不可撤销
 
-| Operation | Undoable | Mechanism |
+| 操作 | 可撤销 | 机制 |
 |-----------|----------|-----------|
-| Transform (x, y, rotation, scale, pivot) — NumericInput | Yes | Auto-snapshot per commit (on blur/Enter) |
-| Opacity, blend shape influence sliders | Yes | Batched per gesture |
-| Add/delete blend shape | Yes | Auto-snapshot |
-| Gizmo drag (position, rotation, scale) | Yes | Batched per gesture |
-| Skeleton bone drag | Yes | Batched per gesture |
-| Keyframe add/delete | Yes | Auto-snapshot |
-| Keyframe drag | Yes | Batched per gesture |
-| Audio track add/trim/move | Yes | Batched per gesture |
-| Mesh generate / remesh | Yes | Auto-snapshot |
-| Group create / reparent | Yes | Auto-snapshot |
-| Load project / reset | No — clears history | `clearHistory()` on load |
-| Draft pose changes (animation mode) | No — draftPose not in project | animationStore only |
-| Undo/redo application itself | No | `skipHistory: true` |
-| Selection, zoom, pan (editorStore) | No | editorStore not touched |
+| 变换（x、y、rotation、scale、pivot）—— NumericInput | 是 | 每次提交自动快照（失焦/Enter 时） |
+| 不透明度、混合变形影响强度滑块 | 是 | 每次手势批处理 |
+| 添加/删除混合变形 | 是 | 自动快照 |
+| Gizmo 拖动（位置、旋转、缩放） | 是 | 每次手势批处理 |
+| 骨架骨骼拖动 | 是 | 每次手势批处理 |
+| 关键帧添加/删除 | 是 | 自动快照 |
+| 关键帧拖动 | 是 | 每次手势批处理 |
+| 音频轨道添加/裁剪/移动 | 是 | 每次手势批处理 |
+| 网格生成 / 重网格 | 是 | 自动快照 |
+| 组创建 / 重新设为子级 | 是 | 自动快照 |
+| 载入项目 / 重置 | 否 —— 清除历史 | 载入时 `clearHistory()` |
+| 草稿姿态更改（动画模式） | 否 —— draftPose 不在 project 中 | 仅 animationStore |
+| 撤销/重做的应用本身 | 否 | `skipHistory: true` |
+| 选择、缩放、平移（editorStore） | 否 | editorStore 未被触碰 |
 
 ---
 
-## Usage Patterns for Developers
+## 开发者使用模式
 
-### Adding a New Undoable Operation
+### 添加新的可撤销操作
 
-If you add a new mutation to the app:
+如果你向应用添加新的变更：
 
-1. **Ensure it goes through `updateProject()`**: Most mutations already do. If not, refactor to use updateProject.
+1. **确保它经过 `updateProject()`**：大多数变更已经如此。若非如此，重构为使用 updateProject。
 
    ```javascript
    // Good: auto-snapshots before mutation
@@ -526,9 +526,9 @@ If you add a new mutation to the app:
    });
    ```
 
-2. **For discrete mutations (NumericInput commit, button click)**: No extra code needed. updateProject auto-snapshots.
+2. **对于离散变更（NumericInput 提交、按钮点击）**：无需额外代码。updateProject 会自动快照。
 
-3. **For continuous operations (drag, slider)**: Wrap with beginBatch/endBatch.
+3. **对于连续操作（拖动、滑块）**：用 beginBatch/endBatch 包裹。
 
    ```javascript
    onPointerDown: () => beginBatch(useProjectStore.getState().project),
@@ -536,9 +536,9 @@ If you add a new mutation to the app:
    onPointerUp: () => endBatch(),
    ```
 
-### Adding Undo UI Indicators
+### 添加撤销 UI 指示器
 
-To show whether undo/redo are available:
+要显示撤销/重做是否可用：
 
 ```javascript
 // In a component:
@@ -550,33 +550,33 @@ const redoCount = useUndoHistoryStore?.((state) => state.redoCount);
 // Create a hook to expose these to React components
 ```
 
-**Note**: The current implementation doesn't expose an undoHistory store to React. If you need UI buttons showing "Undo disabled" / "Redo enabled", either:
-- Create a custom hook that subscribes to the history module
-- Or refactor undoHistory.js into a Zustand store for consistency with the rest of the app
+**注意**：当前实现未向 React 暴露 undoHistory store。如果你需要显示 “Undo disabled” / “Redo enabled” 的 UI 按钮，可以：
+- 创建一个订阅历史模块的自定义 hook
+- 或将 undoHistory.js 重构为 Zustand store，以与应用其余部分保持一致
 
 ---
 
-## Verification Checklist
+## 验证清单
 
-- [x] Basic undo: Change a transform field (blur to commit) → Ctrl+Z → value reverts
-- [x] Redo: After undo → Ctrl+Y → value restores
-- [x] Slider batching: Drag opacity slider — Ctrl+Z jumps to opacity before drag started
-- [x] Gizmo drag batching: Drag node in viewport — Ctrl+Z jumps to pre-drag position
-- [x] Keyframe batching: Drag keyframe in timeline — Ctrl+Z restores to pre-drag frame
-- [x] Stack limit: Make 55 changes — verify only 50 in history (oldest dropped)
-- [x] Load clears history: Load project → Ctrl+Z does nothing (history cleared)
-- [x] Mesh deform undo: Drag bone/blend shape, undo → mesh deformation reverts (no flickering)
-- [x] Texture preservation: After mesh undo, textures remain visible and correct
+- [x] 基本撤销：更改一个变换字段（失焦以提交）→ Ctrl+Z → 值回退
+- [x] 重做：撤销后 → Ctrl+Y → 值恢复
+- [x] 滑块批处理：拖动不透明度滑块 —— Ctrl+Z 跳转到拖动开始前的不透明度
+- [x] Gizmo 拖动批处理：在视口中拖动节点 —— Ctrl+Z 跳转到拖动前位置
+- [x] 关键帧批处理：在时间轴中拖动关键帧 —— Ctrl+Z 恢复到拖动前的帧
+- [x] 栈限制：进行 55 次更改 —— 验证历史中仅有 50 条（最旧的被丢弃）
+- [x] 载入清除历史：载入项目 → Ctrl+Z 无反应（历史被清除）
+- [x] 网格变形撤销：拖动骨骼/混合变形，撤销 → 网格变形回退（无闪烁）
+- [x] 贴图保留：网格撤销后，贴图保持可见且正确
 
 ---
 
-## Testing
+## 测试
 
-### Unit Testing Opportunities
+### 单元测试机会
 
-If you add tests, consider:
+如果你添加测试，可考虑：
 
-1. **pushSnapshot/undo/redo cycle**:
+1. **pushSnapshot/undo/redo 循环**：
    ```javascript
    // Snapshot a project, mutate it, undo, verify state reverts
    const orig = { nodes: { n1: { x: 0 } } };
@@ -587,7 +587,7 @@ If you add tests, consider:
    });
    ```
 
-2. **Batch isolation**:
+2. **批处理隔离**：
    ```javascript
    // Three updates in batch should produce only one snapshot
    beginBatch(project);
@@ -598,7 +598,7 @@ If you add tests, consider:
    assert(undoCount() === 1);  // One snapshot, not three
    ```
 
-3. **Float32Array preservation**:
+3. **Float32Array 保留**：
    ```javascript
    // Snapshot with Float32Array, undo, verify array type preserved
    const proj = { mesh: { uvs: new Float32Array([0, 1, 2, 3]) } };
@@ -609,49 +609,49 @@ If you add tests, consider:
    });
    ```
 
-### Manual Testing Scenarios
+### 手动测试场景
 
-1. **Transform undo**: NumericInput for X/Y/rotation → press Tab/Enter → Ctrl+Z → value reverts
-2. **Multi-step undo**: Make 5 changes (each discrete) → Ctrl+Z 5 times → back to start
-3. **Slider undo**: Grab opacity slider, drag across range → release → Ctrl+Z → opacity before drag
-4. **Complex drag**: In viewport, drag node + rotate + scale via gizmo → release → Ctrl+Z → all reverts
-5. **Redo after undo**: Change value → undo → redo → value back
-6. **Redo invalidation**: Change → undo → make new change → Ctrl+Y does nothing (redo stack cleared)
-7. **Animation mode isolation**: In animation mode, drag to adjust draftPose → Ctrl+Z does nothing (draftPose not in project)
-
----
-
-## Known Limitations and Future Work
-
-### Current Limitations
-
-1. **No UI for undo/redo counts**: The keyboard handler works (Ctrl+Z/Y), but no UI button shows "Undo disabled" state.
-   - **Future**: Export undoCount/redoCount from undoHistory.js, create a hook, add toolbar button.
-
-2. **No "undo" indicator on stale snapshots**: After loading a project, history is cleared. No visual feedback.
-   - **Future**: Toast notification "History cleared" on project load.
-
-3. **History not persisted across sessions**: Undo history is in memory only, lost on page reload.
-   - **Current by design**: Snapshots are full project clones (50 * ~1MB = 50MB footprint). Not practical to persist.
-   - **Future**: Optional IndexedDB persistence with configurable max size.
-
-4. **No grouped undo**: Multiple related changes (e.g., "add blend shape + set influence") create separate history entries.
-   - **Future**: Add `groupUndoStart()` / `groupUndoEnd()` API to batch logically related updates.
-
-### Future Enhancements
-
-- [ ] Undo/Redo UI buttons with enabled/disabled states
-- [ ] Toast notification on history limit reached
-- [ ] Undo history sidebar (show previous states)
-- [ ] Optional IndexedDB persistence for history
-- [ ] Grouped undo (batch multiple updates into one history entry)
-- [ ] Undo diff visualization (show what changed)
+1. **变换撤销**：X/Y/旋转的 NumericInput → 按 Tab/Enter → Ctrl+Z → 值回退
+2. **多步撤销**：进行 5 次更改（每次离散）→ 按 5 次 Ctrl+Z → 回到起点
+3. **滑块撤销**：抓住不透明度滑块，拖过整个范围 → 松开 → Ctrl+Z → 拖动前的不透明度
+4. **复杂拖动**：在视口中，通过 gizmo 拖动节点 + 旋转 + 缩放 → 松开 → Ctrl+Z → 全部回退
+5. **撤销后重做**：更改值 → 撤销 → 重做 → 值恢复
+6. **重做失效**：更改 → 撤销 → 进行新更改 → Ctrl+Y 无反应（重做栈被清空）
+7. **动画模式隔离**：在动画模式中，拖动调整 draftPose → Ctrl+Z 无反应（draftPose 不在 project 中）
 
 ---
 
-## Technical Notes
+## 已知局限与未来工作
 
-### Why structuredClone Instead of JSON?
+### 当前局限
+
+1. **无撤销/重做计数的 UI**：键盘处理器工作正常（Ctrl+Z/Y），但没有 UI 按钮显示 “Undo disabled” 状态。
+   - **未来**：从 undoHistory.js 导出 undoCount/redoCount，创建 hook，添加工具栏按钮。
+
+2. **陈旧快照无 “undo” 指示器**：载入项目后历史被清除。无视觉反馈。
+   - **未来**：项目载入时显示 “History cleared” toast 通知。
+
+3. **历史不跨会话持久化**：撤销历史仅在内存中，页面刷新后丢失。
+   - **当前为设计使然**：快照是完整项目克隆（50 * ~1MB = 50MB 占用）。持久化不切实际。
+   - **未来**：可选的 IndexedDB 持久化，带可配置的最大体积。
+
+4. **无分组撤销**：多个相关更改（例如 “添加混合变形 + 设置影响强度”）会创建单独的历史条目。
+   - **未来**：添加 `groupUndoStart()` / `groupUndoEnd()` API 以批处理逻辑相关的更新。
+
+### 未来增强
+
+- [ ] 带启用/禁用状态的撤销/重做 UI 按钮
+- [ ] 历史达到上限时的 toast 通知
+- [ ] 撤销历史侧边栏（显示先前的状态）
+- [ ] 可选的历史 IndexedDB 持久化
+- [ ] 分组撤销（将多个更新批处理为一个历史条目）
+- [ ] 撤销差异可视化（显示更改内容）
+
+---
+
+## 技术说明
+
+### 为什么用 structuredClone 而非 JSON？
 
 ```javascript
 // JSON doesn't preserve typed arrays:
@@ -667,11 +667,11 @@ clone.uvs instanceof Float32Array;              // → true
 clone.uvs[0];                                   // → 0
 ```
 
-**Cost**: structuredClone is slightly slower than JSON for serializable data, but correctly handles all JS types. Given snapshots are captured on discrete mutations (not per-frame), the performance impact is negligible.
+**代价**：对于可序列化数据，structuredClone 比 JSON 略慢，但能正确处理所有 JS 类型。鉴于快照在离散变更时捕获（而非每帧），性能影响可忽略。
 
-### Why isBatching Check in updateProject?
+### 为什么 updateProject 中要有 isBatching 检查？
 
-Without the batching check, every pointer move during a drag would push a snapshot:
+没有批处理检查，拖动期间每次指针移动都会推入一个快照：
 ```javascript
 // Slider drag (60 FPS):
 onPointerDown → snapshot #1
@@ -683,7 +683,7 @@ onPointerUp → done
 // History now has 60 entries for a single slider gesture!
 ```
 
-With batching:
+有了批处理：
 ```javascript
 onPointerDown → snapshot #1, _batchDepth = 1
 onChange → isBatching() = true → skip snapshot
@@ -693,11 +693,11 @@ onPointerUp → _batchDepth = 0
 // History has 1 entry for the entire gesture
 ```
 
-### Why Separate skipHistory Parameter?
+### 为什么需要单独的 skipHistory 参数？
 
-When applying undo/redo, we call `updateProject(recipe, { skipHistory: true })`. This prevents the undo application itself from pushing another snapshot.
+在应用撤销/重做时，我们调用 `updateProject(recipe, { skipHistory: true })`。这防止撤销的应用本身推入另一个快照。
 
-Without it:
+没有它：
 ```javascript
 // User presses Ctrl+Z
 undo(currentProject, (snapshot) => {
@@ -715,30 +715,30 @@ undo(currentProject, (snapshot) => {
 //    Pressing undo again would just redo it — infinite loop
 ```
 
-With `skipHistory: true`, the undo application itself doesn't snapshot, preserving the history chain.
+使用 `skipHistory: true` 时，撤销的应用本身不会快照，从而保留历史链。
 
 ---
 
-## Files Summary
+## 文件摘要
 
-| File | Type | Changes | Lines |
+| 文件 | 类型 | 更改 | 行数 |
 |------|------|---------|-------|
-| undoHistory.js | New | History stacks, batch logic, snapshot/undo/redo functions | 81 |
-| projectStore.js | Modified | Import from undoHistory, add skipHistory param to updateProject, clearHistory calls | ~20 |
-| useUndoRedo.js | Rewritten | Use undoHistory module, keyboard handler for Ctrl+Z/Y | ~50 |
-| Inspector.jsx | Modified | Import beginBatch/endBatch, wrap SliderRow with batching | ~5 |
-| GizmoOverlay.jsx | Modified | Import beginBatch/endBatch, batch drag operations | ~10 |
-| SkeletonOverlay.jsx | Modified | Import beginBatch/endBatch, batch bone rotation/position drags | ~10 |
-| TimelinePanel.jsx | Modified | Import beginBatch/endBatch, batch keyframe and audio drags | ~15 |
-| CanvasViewport.jsx | Modified | Reorder GPU mesh upload before draw (fix GPU buffer lag) | 1 |
+| undoHistory.js | 新建 | 历史栈、批处理逻辑、快照/撤销/重做函数 | 81 |
+| projectStore.js | 修改 | 从 undoHistory 导入，向 updateProject 添加 skipHistory 参数，clearHistory 调用 | ~20 |
+| useUndoRedo.js | 重写 | 使用 undoHistory 模块，Ctrl+Z/Y 的键盘处理器 | ~50 |
+| Inspector.jsx | 修改 | 导入 beginBatch/endBatch，用批处理包裹 SliderRow | ~5 |
+| GizmoOverlay.jsx | 修改 | 导入 beginBatch/endBatch，批处理拖动操作 | ~10 |
+| SkeletonOverlay.jsx | 修改 | 导入 beginBatch/endBatch，批处理骨骼旋转/位置拖动 | ~10 |
+| TimelinePanel.jsx | 修改 | 导入 beginBatch/endBatch，批处理关键帧和音频拖动 | ~15 |
+| CanvasViewport.jsx | 修改 | 将 GPU 网格上传重排到绘制前（修复 GPU 缓冲滞后） | 1 |
 
-**Total additions**: ~170 lines  
-**Total modifications**: ~60 lines  
-**Total bugs fixed**: 2 (GPU buffer lag, typed array serialization)
+**总新增**：~170 行  
+**总修改**：~60 行  
+**总修复 Bug**：2（GPU 缓冲滞后、类型化数组序列化）
 
 ---
 
-## References
+## 参考
 
 - [MDN: structuredClone()](https://developer.mozilla.org/en-US/docs/Web/API/structuredClone)
 - [MDN: Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)

@@ -1,16 +1,16 @@
-# Save/Load Project Implementation (.stretch Format)
+# 保存/载入项目实现（.stretch 格式）
 
-**Date:** 2026-04-12  
-**Status:** Complete  
-**Format:** ZIP with embedded PNG textures + JSON metadata
+**日期：** 2026-04-12  
+**状态：** 完成  
+**格式：** 内嵌 PNG 贴图 + JSON 元数据的 ZIP
 
-## Overview
+## 概述
 
-Stretchy Studio now supports persistent project saving and loading via the `.stretch` file format. Users can download their work to disk and reload it later, preserving all layers, transforms, meshes, animations, and skeleton rigs.
+Stretchy Studio 现已支持通过 `.stretch` 文件格式进行持久化项目保存与载入。用户可以将作品下载到磁盘，稍后重新载入，并保留所有图层、变换、网格、动画和骨架绑定。
 
-## File Format Specification
+## 文件格式规范
 
-### ZIP Structure
+### ZIP 结构
 ```
 project.stretch (ZIP archive)
 ├── project.json          # All metadata, nodes, animations
@@ -140,11 +140,11 @@ project.stretch (ZIP archive)
 }
 ```
 
-## Implementation Details
+## 实现细节
 
-### Serialization (`saveProject()`)
+### 序列化（`saveProject()`）
 
-**Location:** `src/io/projectFile.js`
+**位置：** `src/io/projectFile.js`
 
 ```javascript
 export async function saveProject(project) {
@@ -189,9 +189,9 @@ export async function saveProject(project) {
 }
 ```
 
-### Deserialization (`loadProject()`)
+### 反序列化（`loadProject()`）
 
-**Location:** `src/io/projectFile.js`
+**位置：** `src/io/projectFile.js`
 
 ```javascript
 export async function loadProject(file) {
@@ -234,11 +234,11 @@ export async function loadProject(file) {
 }
 ```
 
-### UI Integration
+### UI 集成
 
-**Location:** `src/components/canvas/CanvasViewport.jsx`
+**位置：** `src/components/canvas/CanvasViewport.jsx`
 
-#### Download Handler
+#### 下载处理器
 ```javascript
 const handleSave = useCallback(async () => {
   try {
@@ -255,7 +255,7 @@ const handleSave = useCallback(async () => {
 }, []);
 ```
 
-#### Upload Handler
+#### 上传处理器
 ```javascript
 const handleLoad = useCallback(async () => {
   const input = document.createElement('input');
@@ -313,14 +313,14 @@ const handleLoad = useCallback(async () => {
 }, []);
 ```
 
-#### UI Buttons
-Two icon buttons appear in the top-left canvas toolbar, next to the Staging/Animation mode toggle:
-- **Download** (lucide-react `Download` icon) — saves project as `.stretch` file
-- **Upload** (lucide-react `Upload` icon) — file picker to load `.stretch` file
+#### UI 按钮
+画布左上角工具栏、Staging/Animation 模式切换旁会出现两个图标按钮：
+- **Download**（lucide-react `Download` 图标）—— 将项目保存为 `.stretch` 文件
+- **Upload**（lucide-react `Upload` 图标）—— 用于载入 `.stretch` 文件的文件选择器
 
-### Store Integration
+### Store 集成
 
-**Location:** `src/store/projectStore.js`
+**位置：** `src/store/projectStore.js`
 
 ```javascript
 loadProject: (projectData) => set(produce((state) => {
@@ -339,82 +339,82 @@ loadProject: (projectData) => set(produce((state) => {
 })),
 ```
 
-## Data Preservation
+## 数据保留
 
-### What Gets Saved
-✅ Canvas dimensions  
-✅ All node data (parts and groups)  
-✅ Layer names, hierarchy, visibility, opacity  
-✅ Transforms (position, rotation, scale, pivot)  
-✅ Textures (as PNG files in ZIP)  
-✅ Mesh geometry (vertices, triangles, UVs, edge indices)  
-✅ Mesh settings (alphaThreshold, smoothPasses, etc.)  
-✅ Bounding boxes (imageBounds for mesh-less parts)  
-✅ Image dimensions (imageWidth, imageHeight)  
-✅ Skeleton rigging (boneRole on groups, skinWeights on parts)  
-✅ All animations (clips, keyframes, easing)  
-✅ All keyframe types (transforms, mesh_verts, opacity)  
+### 会被保存的内容
+✅ 画布尺寸  
+✅ 所有节点数据（部件与组）  
+✅ 图层名称、层级、可见性、不透明度  
+✅ 变换（位置、旋转、缩放、轴心）  
+✅ 贴图（作为 ZIP 中的 PNG 文件）  
+✅ 网格几何（顶点、三角形、UV、边缘索引）  
+✅ 网格设置（alphaThreshold、smoothPasses 等）  
+✅ 包围盒（无网格部件的 imageBounds）  
+✅ 图像尺寸（imageWidth、imageHeight）  
+✅ 骨架绑定（组上的 boneRole、部件上的 skinWeights）  
+✅ 所有动画（片段、关键帧、缓动）  
+✅ 所有关键帧类型（变换、mesh_verts、不透明度）  
 
-### What Does NOT Get Saved
-❌ Editor state (selection, tool mode, viewport zoom/pan)  
-❌ Animation playback state (current time, playing flag)  
-❌ Draft poses (uncommitted edits)  
-❌ Undo/redo history  
-❌ imageDataMapRef (recomputed on load from textures)  
+### 不会被保存的内容
+❌ 编辑器状态（选择、工具模式、视口缩放/平移）  
+❌ 动画播放状态（当前时间、播放标志）  
+❌ 草稿姿态（未提交的编辑）  
+❌ 撤销/重做历史  
+❌ imageDataMapRef（载入时从贴图重新计算）  
 
-## Type Conversions
+## 类型转换
 
-| Type | On Save | On Load | Reason |
+| 类型 | 保存时 | 载入时 | 原因 |
 |------|---------|---------|--------|
-| `Float32Array` (mesh.uvs) | `Array.from()` | `new Float32Array()` | JSON not serializable |
-| `Set` (mesh.edgeIndices) | `Array.from()` | Keep as Array | Renderer handles both |
-| Blob URL (textures) | fetch → PNG file | PNG → blob URL | URLs are temporary |
-| `ImageData` (for picking) | Not stored | Recomputed from texture | Derived data, saves space |
+| `Float32Array` (mesh.uvs) | `Array.from()` | `new Float32Array()` | JSON 无法序列化 |
+| `Set` (mesh.edgeIndices) | `Array.from()` | 保持为 Array | 渲染器两者均可处理 |
+| Blob URL（贴图） | fetch → PNG 文件 | PNG → blob URL | URL 是临时的 |
+| `ImageData`（用于拾取） | 不存储 | 从贴图重新计算 | 派生数据，节省空间 |
 
-## Error Handling
+## 错误处理
 
-- **Save errors**: Wrapped in try/catch, logged to console. User sees no visual feedback (can add toast notification in future).
-- **Load errors**: File read/parse errors caught, logged. Partial load failure doesn't corrupt store (full replace operation is atomic).
-- **Blob URL fetch failure**: Catches error per-texture, continues with empty source if needed.
-- **Image load timeout**: Promise-based Image loading awaits onload; onerror rejects and propagates up.
+- **保存错误**：包裹在 try/catch 中，并记录到控制台。用户看不到视觉反馈（未来可添加 toast 通知）。
+- **载入错误**：捕获并记录文件读取/解析错误。部分载入失败不会破坏 store（完整替换操作是原子的）。
+- **Blob URL fetch 失败**：按贴图逐个捕获错误，必要时以空 source 继续。
+- **图像载入超时**：基于 Promise 的 Image 载入会等待 onload；onerror 拒绝并向上传播。
 
-## Performance Characteristics
+## 性能特征
 
-- **Save time**: ~200–500ms for typical project (texture fetch + ZIP generation)
-- **Load time**: ~500ms–2s (ZIP read + PNG decode + GPU upload)
-- **File size**: ~40–60% smaller than base64-encoded textures in JSON
-  - Example: 10 textures × 500KB each = 5MB project → ~2–3MB `.stretch` file
+- **保存时间**：典型项目约 200–500ms（贴图 fetch + ZIP 生成）
+- **载入时间**：约 500ms–2s（ZIP 读取 + PNG 解码 + GPU 上传）
+- **文件大小**：比 JSON 中 base64 编码的贴图小约 40–60%
+  - 示例：10 张贴图 × 每张 500KB = 5MB 项目 → 约 2–3MB 的 `.stretch` 文件
 
-## Testing Checklist
+## 测试清单
 
-✅ Save project with PNG → .stretch file downloads  
-✅ ZIP contains project.json + textures/ folder with all PNGs  
-✅ project.json is valid JSON with all expected fields  
-✅ Load project → layers render with correct hierarchy  
-✅ Load project → transforms applied correctly (position, rotation, scale)  
-✅ Load project → meshes render (or quad fallback if no mesh)  
-✅ Load project → animations play back correctly  
-✅ Load project → keyframes interpolate smoothly  
-✅ Load project → mesh_verts keyframes deform correctly  
-✅ Load project → skeleton rigs animate with bone rotations  
-✅ Load project → gizmo selection works  
-✅ Load project → layer picking by alpha works  
-✅ Save empty project (no layers) → loads back successfully  
-✅ Save project with high-res textures → file size reasonable  
+✅ 保存带 PNG 的项目 → `.stretch` 文件下载  
+✅ ZIP 包含 project.json + textures/ 文件夹及所有 PNG  
+✅ project.json 是包含所有预期字段的有效 JSON  
+✅ 载入项目 → 图层以正确层级渲染  
+✅ 载入项目 → 变换正确应用（位置、旋转、缩放）  
+✅ 载入项目 → 网格渲染（若无网格则回退为四边形）  
+✅ 载入项目 → 动画正确回放  
+✅ 载入项目 → 关键帧平滑插值  
+✅ 载入项目 → mesh_verts 关键帧正确变形  
+✅ 载入项目 → 骨架绑定随骨骼旋转动画  
+✅ 载入项目 → Gizmo 选择可用  
+✅ 载入项目 → 按 alpha 的图层拾取可用  
+✅ 保存空项目（无图层）→ 成功载回  
+✅ 保存高分辨率贴图的项目 → 文件大小合理  
 
-## Future Enhancements
+## 未来增强
 
-1. **Toast notifications** — user feedback on save/load success or error
-2. **Compress textures on save** — webp/jpg instead of PNG to reduce file size further
-3. **Texture optimization** — quantize or downscale textures with user options
-4. **Cloud storage integration** — auto-save to cloud, version history
-5. **Project versioning** — support multiple format versions for backwards compatibility
-6. **History snapshots** — save project snapshots in undo/redo stack
-7. **Incremental saves** — only save changed parts (diff-based)
+1. **Toast 通知** —— 在保存/载入成功或出错时给用户反馈
+2. **保存时压缩贴图** —— 使用 webp/jpg 替代 PNG，进一步减小文件体积
+3. **贴图优化** —— 通过用户选项对贴图进行量化或降采样
+4. **云存储集成** —— 自动保存到云端、版本历史
+5. **项目版本管理** —— 支持多种格式版本以实现向后兼容
+6. **历史快照** —— 在撤销/重做栈中保存项目快照
+7. **增量保存** —— 仅保存变化的部分（基于差分）
 
-## References
+## 参考
 
-- **JSZip Documentation**: https://stuk.github.io/jszip/
-- **Zustand Store Pattern**: `src/store/projectStore.js`
-- **Rendering Architecture**: `src/renderer/partRenderer.js` (uploadTexture, uploadMesh, uploadQuadFallback, destroyAll)
-- **Animation Engine**: `src/renderer/animationEngine.js` (keyframe interpolation)
+- **JSZip 文档**：https://stuk.github.io/jszip/
+- **Zustand Store 模式**：`src/store/projectStore.js`
+- **渲染架构**：`src/renderer/partRenderer.js`（uploadTexture, uploadMesh, uploadQuadFallback, destroyAll）
+- **动画引擎**：`src/renderer/animationEngine.js`（关键帧插值）

@@ -11,6 +11,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { useAnimationStore } from '@/store/animationStore';
 import { useParameterStore } from '@/store/parameterStore';
 import { interpolateMeshVerts, upsertKeyframe } from '@/renderer/animationEngine';
+import { useTranslation } from '@/i18n';
 
 /** Build the regular (col+1)×(row+1) rest grid from the warp deformer node bounds. */
 function buildRestGrid(wdNode) {
@@ -33,6 +34,8 @@ export function WarpLatticeOverlay({ wdNode, view }) {
   const dragRef = useRef(null);
   const viewRef = useRef(view);
   React.useEffect(() => { viewRef.current = view; }, [view]);
+
+  const { t } = useTranslation();
 
   const parameters    = useProjectStore(s => s.project.parameters);
   const animations    = useProjectStore(s => s.project.animations);
@@ -201,7 +204,7 @@ export function WarpLatticeOverlay({ wdNode, view }) {
           fontSize="11"
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
-          Set a parameter in the Inspector to record keyforms
+          {t('canvas.warpLattice.setParameterHint')}
         </text>
       )}
 

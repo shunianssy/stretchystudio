@@ -1,18 +1,18 @@
-# Export Feature Implementation
+# 导出功能实现
 
-## Overview
+## 概述
 
-The Export feature enables users to render animation frames as image sequences or single frames in PNG, WEBP, or JPG format, outputting to ZIP files or system folders via the File System Access API.
+导出功能让用户可以将动画帧渲染为图像序列或单帧，格式为 PNG、WEBP 或 JPG，并通过 File System Access API 输出到 ZIP 文件或系统文件夹。
 
-**Status**: Complete (M6 feature)  
-**Implementation Date**: 2026-04-12  
-**Files Modified**: 5 | **Files Created**: 2
+**状态**：完成（M6 功能）  
+**实现日期**：2026-04-12  
+**修改文件数**：5 | **新建文件数**：2
 
 ---
 
-## Architecture
+## 架构
 
-### Export Pipeline
+### 导出管线
 
 ```
 EditorLayout
@@ -29,9 +29,9 @@ EditorLayout
               └── exportToFolder() → File System Access API
 ```
 
-### Key Design Decisions
+### 关键设计决策
 
-#### 1. WebGL Context Flags (CanvasViewport.jsx:167)
+#### 1. WebGL 上下文标志（CanvasViewport.jsx:167）
 
 ```javascript
 getContext('webgl2', {
@@ -42,35 +42,35 @@ getContext('webgl2', {
 })
 ```
 
-**Rationale**: 
-- `alpha: true` allows exported frames to be truly transparent (critical for PNG/WEBP)
-- `preserveDrawingBuffer: true` ensures `canvas.toDataURL()` captures the rendered frame
-- The background shader continues to draw opaque background (no visual change in normal rendering)
+**理由**： 
+- `alpha: true` 使导出的帧可以真正透明（对 PNG/WEBP 至关重要）
+- `preserveDrawingBuffer: true` 确保 `canvas.toDataURL()` 能捕获已渲染的帧
+- 背景着色器继续绘制不透明背景（正常渲染时无视觉变化）
 
-#### 2. Canvas Resizing During Export
+#### 2. 导出期间的画布尺寸调整
 
-**Problem**: Changing `canvas.width/height` clears the drawing buffer. We need to render at export resolution without breaking the live viewport.
+**问题**：改变 `canvas.width/height` 会清空绘制缓冲。我们需要以导出分辨率渲染，同时不破坏实时视口。
 
-**Solution**: 
-1. Set `canvas.width = exportWidth`, `canvas.height = exportHeight` directly
-2. Pass `skipResize: true` to `scenePass.draw()` to bypass CSS-based resize logic
-3. Render with export parameters
-4. Capture with `canvas.toDataURL()` (synchronous, works with `preserveDrawingBuffer`)
-5. Mark `isDirtyRef = true` — the next rAF tick's scenePass will see `canvas.width !== canvas.clientWidth` and restore to viewport size
+**解决方案**： 
+1. 直接设置 `canvas.width = exportWidth`、`canvas.height = exportHeight`
+2. 向 `scenePass.draw()` 传入 `skipResize: true`，以绕过基于 CSS 的尺寸调整逻辑
+3. 使用导出参数渲染
+4. 用 `canvas.toDataURL()` 捕获（同步，配合 `preserveDrawingBuffer` 可用）
+5. 标记 `isDirtyRef = true` —— 下一个 rAF tick 的 scenePass 会看到 `canvas.width !== canvas.clientWidth`，并恢复到视口尺寸
 
-**Why this works**: The rAF callback resizes via the CSS guard on the next tick, so no manual restoration needed.
+**为何可行**：rAF 回调会在下一个 tick 通过 CSS 守卫调整尺寸，因此无需手动恢复。
 
-#### 3. Transparent Background Handling
+#### 3. 透明背景处理
 
-**For transparent export**:
-- Pass `bgEnabled: false` to export project
-- Set `exportMode: true` in scenePass.draw()
-- scenePass clears to transparent (rgba 0,0,0,0) and skips bgRenderer
-- Result: transparent pixels in canvas
+**用于透明导出**：
+- 向导出项目传入 `bgEnabled: false`
+- 在 scenePass.draw() 中设置 `exportMode: true`
+- scenePass 清空为透明（rgba 0,0,0,0）并跳过 bgRenderer
+- 结果：画布中为透明像素
 
-**For solid background export**:
-- Render with `exportMode: true` (transparent canvas)
-- Composite onto 2D offscreen canvas:
+**用于纯色背景导出**：
+- 以 `exportMode: true` 渲染（透明画布）
+- 合成到 2D 离屏画布上：
   ```javascript
   const off = document.createElement('canvas');
   const ctx = off.getContext('2d');
@@ -79,110 +79,110 @@ getContext('webgl2', {
   ctx.drawImage(glCanvas, 0, 0);
   dataUrl = off.toDataURL();
   ```
-- **Advantage**: No changes to BackgroundRenderer, JPG format works (no transparency holes)
+- **优势**：无需改动 BackgroundRenderer，JPG 格式也可用（无透明空洞）
 
 ---
 
-## Files Modified
+## 修改的文件
 
 ### 1. `src/renderer/scenePass.js`
 
-**Changes**: Added optional `exportMode` and `skipResize` parameters to `draw()` method
+**更改**：为 `draw()` 方法添加可选的 `exportMode` 和 `skipResize` 参数
 
 ```javascript
 draw(project, editor, isDark = true, poseOverrides = null, { skipResize = false, exportMode = false } = {})
 ```
 
-**Key modifications**:
-- Skip canvas resize if `skipResize: true` (preserves export dimensions)
-- Clear to transparent if `exportMode: true`
-- Skip bgRenderer call if `exportMode: true`
+**关键修改**：
+- 若 `skipResize: true` 则跳过画布尺寸调整（保留导出尺寸）
+- 若 `exportMode: true` 则清空为透明
+- 若 `exportMode: true` 则跳过 bgRenderer 调用
 
-**Line 88**: Method signature  
-**Line 92-96**: Resize guard wrapped with `!skipResize` check  
-**Line 109-111**: Transparent clear + conditional bgRenderer
+**第 88 行**：方法签名  
+**第 92-96 行**：尺寸调整守卫被 `!skipResize` 检查包裹  
+**第 109-111 行**：透明清空 + 条件性 bgRenderer
 
 ---
 
 ### 2. `src/components/canvas/CanvasViewport.jsx`
 
-**Changes**: WebGL context, captureRef prop, frame capture logic
+**更改**：WebGL 上下文、captureRef prop、帧捕获逻辑
 
-**Line 116**: Add `captureRef` to component props
+**第 116 行**：向组件 props 添加 `captureRef`
 
-**Line 167**: Update WebGL context options:
+**第 167 行**：更新 WebGL 上下文选项：
 ```javascript
 // Before: { alpha: false, stencil: true }
 // After:  { alpha: true, premultipliedAlpha: false, stencil: true, preserveDrawingBuffer: true }
 ```
 
-**Lines 1691-1770**: `captureExportFrame` function
-- Resizes canvas to export dimensions
-- Builds mock editor with zoom=1, no overlays
-- Computes pose at specific animation time via `computePoseOverrides()`
-- **New**: Manually computes blend shape mesh deformations for the export frame
-- **New**: Uploads deformed mesh vertices to GPU via `uploadPositions()` before rendering
-- Calls `scenePass.draw(exportProject, exportEditor, isDarkRef.current, poseOverrides, { skipResize: true, exportMode: true })`
-- Composites background color if needed
-- **New**: Restores original mesh positions to GPU to maintain scene integrity
-- Returns data URL (PNG, WEBP, or JPG)
-- Marks dirty for rAF restore
+**第 1691-1770 行**：`captureExportFrame` 函数
+- 将画布调整为导出尺寸
+- 构建 zoom=1、无叠加层的模拟编辑器
+- 通过 `computePoseOverrides()` 计算特定动画时间的姿态
+- **新增**：为导出帧手动计算混合变形网格变形
+- **新增**：在渲染前通过 `uploadPositions()` 将变形后的网格顶点上传到 GPU
+- 调用 `scenePass.draw(exportProject, exportEditor, isDarkRef.current, poseOverrides, { skipResize: true, exportMode: true })`
+- 按需合成背景色
+- **新增**：将原始网格位置恢复到 GPU，以保持场景完整性
+- 返回 data URL（PNG、WEBP 或 JPG）
+- 标记 dirty 以便 rAF 恢复
 
-**Lines 1359-1360**: useEffect to assign `captureExportFrame` to `captureRef.current`
+**第 1359-1360 行**：用于将 `captureExportFrame` 赋给 `captureRef.current` 的 useEffect
 
 ---
 
 ### 3. `src/app/layout/EditorLayout.jsx`
 
-**Changes**: Download button, export modal state, captureRef wiring
+**更改**：下载按钮、导出弹窗状态、captureRef 接线
 
-**Line 14**: Add `Download` to lucide-react import
+**第 14 行**：向 lucide-react import 添加 `Download`
 
-**Line 15**: Import `ExportModal` component
+**第 15 行**：导入 `ExportModal` 组件
 
-**Lines 63-64**: Add `captureRef` and `exportModalOpen` state
+**第 63-64 行**：添加 `captureRef` 和 `exportModalOpen` 状态
 
-**Lines 180-191**: Download button in toolbar (after Load button)
+**第 180-191 行**：工具栏中的下载按钮（位于 Load 按钮之后）
 
-**Line 418**: Pass `captureRef` to CanvasViewport
+**第 418 行**：向 CanvasViewport 传入 `captureRef`
 
-**Lines 476-481**: Render ExportModal with state wiring
+**第 476-481 行**：渲染 ExportModal 并接线状态
 
 ---
 
-## Files Created
+## 新建的文件
 
 ### 4. `src/io/exportAnimation.js`
 
-Core export logic: frame specs, bounds computation, ZIP/Folder writing.
+核心导出逻辑：帧规格、边界计算、ZIP/文件夹写入。
 
-**Exported functions**:
+**导出的函数**：
 
 #### `computeExportFrameSpecs({ type, animsToExport, exportFps, frameIndex })`
-Returns `[{ animId, animName, frameIndex, timeMs }, ...]`
-- **Sequence**: Generates `Math.round(duration/1000 * fps)` frames per animation
-- **Single frame**: One entry per animation at `frameIndex/fps` milliseconds
+返回 `[{ animId, animName, frameIndex, timeMs }, ...]`
+- **序列**：为每个动画生成 `Math.round(duration/1000 * fps)` 帧
+- **单帧**：每个动画在 `frameIndex/fps` 毫秒处生成一个条目
 
 #### `computeAnalyticalBounds(project)`
-Computes world-space bounding box of all visible parts.
-- Uses `computeWorldMatrices()` and `computeEffectiveProps()` from transforms.js
-- Transforms 4 corners of each part's image bounds
-- Returns `{ x, y, width, height }` or `null`
-- Used for 'min_image_area' export option
+计算所有可见部件的世界空间包围盒。
+- 使用 transforms.js 中的 `computeWorldMatrices()` 和 `computeEffectiveProps()`
+- 变换每个部件图像边界的 4 个角
+- 返回 `{ x, y, width, height }` 或 `null`
+- 用于 'min_image_area' 导出选项
 
 #### `resolveAnimations(animations, animTarget, activeAnimationId)`
-Resolves which animations to export:
-- `'current'` → active animation or first animation
-- `'all'` → all animations
-- Specific ID → that animation
+解析要导出哪些动画：
+- `'current'` → 激活动画或第一个动画
+- `'all'` → 所有动画
+- 特定 ID → 该动画
 
 #### `exportFrames({ frames, format, exportDest, onProgress })`
-Main export orchestrator.
-- Delegates to `exportToZip()` or `exportToFolder()`
-- Calls `onProgress(message)` for UI updates
+主导出编排器。
+- 委托给 `exportToZip()` 或 `exportToFolder()`
+- 调用 `onProgress(message)` 以更新 UI
 
 #### `exportToZip(frames, ext, onProgress)`
-Uses dynamic import `jszip`:
+使用动态导入 `jszip`：
 ```javascript
 const { default: JSZip } = await import('jszip');
 const zip = new JSZip();
@@ -192,7 +192,7 @@ zip.generateAsync({ type: 'blob' });
 ```
 
 #### `exportToFolder(frames, ext, onProgress)`
-Uses File System Access API:
+使用 File System Access API：
 ```javascript
 const dirHandle = await window.showDirectoryPicker();
 const subDir = await dirHandle.getDirectoryHandle('animName', { create: true });
@@ -201,71 +201,71 @@ const writable = await fileHandle.createWritable();
 await writable.write(blob);
 ```
 
-**Helper**: `sanitizeName(name)` — replaces non-alphanumeric chars with `_`
+**辅助函数**：`sanitizeName(name)` —— 将非字母数字字符替换为 `_`
 
 ---
 
 ### 5. `src/components/export/ExportModal.jsx`
 
-Full modal UI with form controls and export orchestration.
+带有表单控件与导出编排的完整弹窗 UI。
 
-**State**:
-- Type: sequence | single_frame
-- Format: png | webp | jpg
-- Animation target: current | specific | all
-- Export FPS (sequence only) or frame index (single frame)
-- Image contains: canvas_area | min_image_area | custom
-- Output scale: 1-400%
-- Background: transparent | custom color
-- Export destination: zip | folder
+**状态**：
+- Type：sequence | single_frame
+- Format：png | webp | jpg
+- Animation target：current | specific | all
+- Export FPS（仅序列）或 frame index（单帧）
+- Image contains：canvas_area | min_image_area | custom
+- Output scale：1-400%
+- Background：transparent | custom color
+- Export destination：zip | folder
 
-**Key features**:
-- Syncs defaults from stores on open
-- Disables folder option if `'showDirectoryPicker'` not in window
-- Shows JPG + transparent warning
-- Progress bar during export (current/total frames)
-- Cancel button (disabled while exporting)
+**关键特性**：
+- 打开时从 store 同步默认值
+- 若 window 中不存在 `'showDirectoryPicker'`，则禁用文件夹选项
+- 显示 JPG + 透明的警告
+- 导出期间显示进度条（当前/总帧数）
+- 取消按钮（导出期间禁用）
 
-**Export flow**:
-1. Resolve animations to export
-2. Compute frame specs via `computeExportFrameSpecs()`
-3. Compute export dimensions (canvas area, min area, or custom)
-4. Loop through frame specs:
-   - Call `captureRef.current({ animId, timeMs, ... })`
-   - Update progress
-   - Yield to browser (setTimeout)
-5. Pass all frame data to `exportFrames()`
-6. Close modal
+**导出流程**：
+1. 解析要导出的动画
+2. 通过 `computeExportFrameSpecs()` 计算帧规格
+3. 计算导出尺寸（画布区域、最小区域或自定义）
+4. 遍历帧规格：
+   - 调用 `captureRef.current({ animId, timeMs, ... })`
+   - 更新进度
+   - 让出给浏览器（setTimeout）
+5. 将所有帧数据传给 `exportFrames()`
+6. 关闭弹窗
 
 ---
 
-## Usage
+## 用法
 
-### End User Flow
+### 最终用户流程
 
-1. **Open Export Modal**: Click Download icon in toolbar
-2. **Configure Export**:
-   - Select Type (Sequence / Single Frame)
-   - Choose Format (PNG / WEBP / JPG)
-   - Pick Animation (Current / specific / All)
-   - Set FPS (sequence) or Frame index (single)
-   - Choose Image Contains (Canvas area / Min / Custom)
-   - Adjust Output Scale (%)
-   - Select Background (Transparent / Custom color)
-   - Pick Export Destination (ZIP / Folder)
-3. **Export**: Click Export button
-4. **Wait**: Progress bar shows current frame / total
-5. **Download**: ZIP downloads or folder is written to system
+1. **打开导出弹窗**：点击工具栏中的 Download 图标
+2. **配置导出**：
+   - 选择 Type（Sequence / Single Frame）
+   - 选择 Format（PNG / WEBP / JPG）
+   - 选择 Animation（Current / 特定 / All）
+   - 设置 FPS（序列）或 Frame index（单帧）
+   - 选择 Image Contains（Canvas area / Min / Custom）
+   - 调整 Output Scale（%）
+   - 选择 Background（Transparent / Custom color）
+   - 选择 Export Destination（ZIP / Folder）
+3. **导出**：点击 Export 按钮
+4. **等待**：进度条显示当前帧 / 总帧数
+5. **下载**：ZIP 下载或文件夹写入系统
 
-### Programmer Integration
+### 程序员集成
 
-If adding new export options (e.g., metadata, naming conventions):
+如果要添加新的导出选项（例如元数据、命名约定）：
 
-1. **Add to ExportModal state**: New form field
-2. **Pass to captureRef**: Include in `captureRef.current({ ... })` call
-3. **Use in export file functions**: `exportFrames()` receives all frame data + metadata
+1. **添加到 ExportModal 状态**：新表单字段
+2. **传给 captureRef**：包含在 `captureRef.current({ ... })` 调用中
+3. **在导出的文件函数中使用**：`exportFrames()` 接收所有帧数据 + 元数据
 
-Example: Adding custom prefix to filenames:
+示例：为文件名添加自定义前缀：
 ```javascript
 // In ExportModal:
 const [filePrefix, setFilePrefix] = useState('anim');
@@ -279,123 +279,123 @@ const filename = `${filePrefix}_frame_${frameIndex}.${ext}`;
 
 ---
 
-## Known Limitations & Future Work
+## 已知局限与未来工作
 
-### Current Limitations
+### 当前局限
 
-1. **GIF Format**: Not supported (no browser-native GIF encoding). Can be added later via `gifenc` or `gif.js` library.
+1. **GIF 格式**：不支持（无浏览器原生 GIF 编码）。之后可通过 `gifenc` 或 `gif.js` 库添加。
 
-2. **Custom Crop**: The "Custom" image contains option doesn't have a visual UI for dragging crop bounds. Users must select "Custom" but dimensions default to canvas area.
+2. **自定义裁剪**：“Custom” image contains 选项没有用于拖动裁剪边界的可视化 UI。用户必须选择 “Custom”，但尺寸默认使用画布区域。
 
-3. **JPG + Transparent**: Automatically renders with black background (since JPG has no alpha). User sees warning.
+3. **JPG + 透明**：会自动以黑色背景渲染（因为 JPG 没有 alpha）。用户会看到警告。
 
-4. **Min Image Area**: Computed analytically from part bounds. Does not account for alpha-only pixels (e.g., soft shadows outside the image bounds).
+4. **最小图像区域**：从部件边界分析计算得出。不考虑仅 alpha 的像素（例如图像边界外的柔和阴影）。
 
-### Future Enhancements
+### 未来增强
 
-- [ ] Custom crop UI (drag bounds in canvas preview)
-- [ ] GIF export via library
-- [ ] Batch export presets (save/load common configurations)
-- [ ] Spritesheet grid layout (instead of separate files)
-- [ ] Metadata JSON per frame (transform, visibility, etc.)
-- [ ] Export specific frame ranges (start/end frame)
-- [ ] Interlaced PNG / progressive JPEG options
-
----
-
-## Technical Notes
-
-### Why `preserveDrawingBuffer: true`?
-
-`preserveDrawingBuffer: false` (default) allows the browser to optimize by immediately swapping the front and back buffers. With false, `canvas.toDataURL()` may return the previous frame or garbage. 
-
-`preserveDrawingBuffer: true` tells WebGL to keep the rendering buffer available for CPU readback (e.g., `toDataURL()`, `getImageData()`). Small performance cost but essential for frame capture outside the rAF tick.
-
-### Why `alpha: true` and `premultipliedAlpha: false`?
-
-The WebGL context default `alpha: false` means the canvas is fully opaque. The rendering buffer's alpha channel is ignored.
-
-With `alpha: true, premultipliedAlpha: false`:
-- The canvas can have transparent areas
-- `toDataURL('image/png')` correctly encodes alpha channel
-- Compositing on `<canvas>` background follows standard (non-premultiplied) alpha rules
-
-### Why Composite BG via 2D Canvas?
-
-**Alternative 1**: Modify BackgroundRenderer to draw on demand  
-**Problem**: Complex, breaks separation of concerns
-
-**Alternative 2**: Change WebGL clear color when `bgEnabled: true`  
-**Problem**: Doesn't handle non-solid backgrounds (gradients, patterns)
-
-**Our approach**: Render transparent, then composite in 2D  
-**Advantage**: Simple, works for all BG types, doesn't touch ScenePass
-
-### Canvas Size Restoration
-
-After export capture, we don't manually restore `canvas.width` and `canvas.height`. Instead:
-
-1. Set `isDirtyRef.current = true`
-2. Next rAF tick calls `scenePass.draw()` without `skipResize`
-3. Resize guard sees `canvas.width (exportWidth) !== canvas.clientWidth (viewportWidth)`
-4. Sets `canvas.width = canvas.clientWidth` → viewport size restored
-5. Renders at correct viewport size
-
-**Why not manual restore?** Because `canvas.width = x` itself clears the buffer. If we did it in `captureExportFrame`, it would clear the freshly-captured frame. Letting rAF handle it is safer.
+- [ ] 自定义裁剪 UI（在画布预览中拖动边界）
+- [ ] 通过库导出 GIF
+- [ ] 批量导出预设（保存/载入常用配置）
+- [ ] 精灵表网格布局（替代单独文件）
+- [ ] 每帧的元数据 JSON（变换、可见性等）
+- [ ] 导出特定帧范围（起始/结束帧）
+- [ ] 交错 PNG / 渐进式 JPEG 选项
 
 ---
 
-## Testing Checklist
+## 技术说明
 
-- [ ] Single frame PNG export (transparent background)
-- [ ] Sequence PNG export at 24 FPS
-- [ ] Sequence WEBP export with custom color background
-- [ ] JPG export (verify warning appears for transparent BG)
-- [ ] Multiple animations — All + ZIP
-- [ ] Multiple animations — Specific + Folder (if FSAPI available)
-- [ ] Output scale 50% — verify dimensions are half
-- [ ] Min image area — verify bounding box is tighter than canvas
-- [ ] Progress bar updates during export
-- [ ] Live viewport renders correctly after export completes
-- [ ] ZIP file structure: `{animName}/frame_0001.png`, etc.
-- [ ] Folder structure mirrors ZIP
-- [ ] JPG quality looks acceptable at 0.92
+### 为什么使用 `preserveDrawingBuffer: true`？
+
+`preserveDrawingBuffer: false`（默认）允许浏览器通过立即交换前后缓冲来优化。为 false 时，`canvas.toDataURL()` 可能返回上一帧或垃圾数据。
+
+`preserveDrawingBuffer: true` 告诉 WebGL 保持渲染缓冲可供 CPU 回读（例如 `toDataURL()`、`getImageData()`）。有轻微性能开销，但对于在 rAF tick 之外捕获帧是必需的。
+
+### 为什么使用 `alpha: true` 和 `premultipliedAlpha: false`？
+
+WebGL 上下文默认 `alpha: false` 意味着画布完全不透明。渲染缓冲的 alpha 通道被忽略。
+
+使用 `alpha: true, premultipliedAlpha: false`：
+- 画布可以有透明区域
+- `toDataURL('image/png')` 正确编码 alpha 通道
+- 在 `<canvas>` 背景上的合成遵循标准（非预乘）alpha 规则
+
+### 为什么要通过 2D 画布合成背景？
+
+**方案 1**：修改 BackgroundRenderer 以按需绘制  
+**问题**：复杂，破坏关注点分离
+
+**方案 2**：当 `bgEnabled: true` 时更改 WebGL 清空颜色  
+**问题**：无法处理非纯色背景（渐变、图案）
+
+**我们的方法**：先渲染为透明，再在 2D 中合成  
+**优势**：简单，适用于所有背景类型，不触碰 ScenePass
+
+### 画布尺寸恢复
+
+在导出捕获后，我们不手动恢复 `canvas.width` 和 `canvas.height`。而是：
+
+1. 设置 `isDirtyRef.current = true`
+2. 下一个 rAF tick 调用不带 `skipResize` 的 `scenePass.draw()`
+3. 尺寸调整守卫看到 `canvas.width (exportWidth) !== canvas.clientWidth (viewportWidth)`
+4. 设置 `canvas.width = canvas.clientWidth` → 视口尺寸被恢复
+5. 以正确的视口尺寸渲染
+
+**为什么不手动恢复？** 因为 `canvas.width = x` 本身会清空缓冲。如果我们在 `captureExportFrame` 中这么做，会清空刚刚捕获的帧。让 rAF 处理更安全。
 
 ---
 
-## Debugging
+## 测试清单
 
-### Common Issues
+- [ ] 单帧 PNG 导出（透明背景）
+- [ ] 以 24 FPS 导出序列 PNG
+- [ ] 以自定义颜色背景导出序列 WEBP
+- [ ] 导出 JPG（验证透明背景时出现警告）
+- [ ] 多动画 —— All + ZIP
+- [ ] 多动画 —— Specific + Folder（若 FSAPI 可用）
+- [ ] 输出缩放 50% —— 验证尺寸减半
+- [ ] 最小图像区域 —— 验证包围盒比画布更紧凑
+- [ ] 导出期间进度条更新
+- [ ] 导出完成后实时视口正确渲染
+- [ ] ZIP 文件结构：`{animName}/frame_0001.png` 等
+- [ ] 文件夹结构与 ZIP 一致
+- [ ] JPG 质量在 0.92 时看起来可接受
 
-**Export button does nothing**:
-- Check `captureRef.current` is assigned (useEffect should run)
-- Verify sceneRef exists (ScenePass initialized)
-- Open dev console for errors
+---
 
-**Exported frames are blank / white**:
-- Check WebGL context has `alpha: true` (should see transparent in PNG)
-- Verify pose computation isn't clipping all nodes
-- Check canvas dimensions in export were set correctly
+## 调试
 
-**ZIP download doesn't start**:
-- Verify JSZip import works (check network tab)
-- Confirm at least one frame was captured
-- Check blob URL creation and `<a>` click fired
+### 常见问题
 
-**Folder export fails silently**:
-- File System Access API requires HTTPS in production
-- Firefox doesn't support showDirectoryPicker
-- User cancelled folder picker (caught and logged)
+**导出按钮无反应**：
+- 检查 `captureRef.current` 是否已赋值（useEffect 应已运行）
+- 验证 sceneRef 存在（ScenePass 已初始化）
+- 打开开发者控制台查看错误
 
-### Debug Output
+**导出的帧是空白/白色**：
+- 检查 WebGL 上下文是否有 `alpha: true`（PNG 中应看到透明）
+- 验证姿态计算没有裁剪掉所有节点
+- 检查导出时的画布尺寸是否正确设置
 
-Enable console logging in `captureExportFrame`:
+**ZIP 下载未开始**：
+- 验证 JSZip 导入是否工作（检查网络标签页）
+- 确认至少捕获了一帧
+- 检查 blob URL 创建以及 `<a>` 点击是否触发
+
+**文件夹导出静默失败**：
+- File System Access API 在生产环境需要 HTTPS
+- Firefox 不支持 showDirectoryPicker
+- 用户取消了文件夹选择器（已捕获并记录）
+
+### 调试输出
+
+在 `captureExportFrame` 中启用控制台日志：
 ```javascript
 console.log('[Export] Rendering frame', spec.frameIndex, 'at', timeMs, 'ms');
 console.log('[Export] Canvas size:', canvas.width, 'x', canvas.height);
 ```
 
-Enable in `exportAnimation.js`:
+在 `exportAnimation.js` 中启用：
 ```javascript
 console.log('[Export] Frame specs:', frameSpecs);
 console.log('[Export] Bounds:', computeAnalyticalBounds(project));
@@ -403,40 +403,40 @@ console.log('[Export] Bounds:', computeAnalyticalBounds(project));
 
 ---
 
-## Bug Fixes
+## Bug 修复
 
-### Mesh-Deformed Joint Export (2026-04-16)
+### 网格变形关节导出（2026-04-16）
 
-**Problem**: Exported PNG frames don't match what's displayed on the app. Specifically, mesh-deformed joints (blend shapes) don't show up correctly in exports.
+**问题**：导出的 PNG 帧与应用中显示的内容不一致。具体来说，网格变形关节（混合变形）在导出中未正确显示。
 
-**Root Cause**: When playing animations on the webpage, the code calls `sceneRef.current.parts.uploadPositions()` to upload deformed mesh vertices to the GPU before rendering. However, this step was completely missing in the export frame capture function, and the deformation logic itself was only being run in the main `tick()` loop.
+**根因**：在网页上播放动画时，代码会调用 `sceneRef.current.parts.uploadPositions()` 在渲染前将变形后的网格顶点上传到 GPU。然而，在导出帧捕获函数中完全缺少这一步骤，而且变形逻辑本身只运行在主 `tick()` 循环中。
 
-**Solution**: Added complete mesh vertex upload and restore logic to `captureExportFrame()`:
-1.  Manually compute blend shape deformations for the specific frame time.
-2.  Upload deformed mesh vertices to GPU before calling `scene.draw()`.
-3.  Restore original mesh positions after the frame capture is complete.
+**解决方案**：向 `captureExportFrame()` 添加完整的网格顶点上传和恢复逻辑：
+1.  针对特定帧时间手动计算混合变形。
+2.  在调用 `scene.draw()` 前将变形后的网格顶点上传到 GPU。
+3.  帧捕获完成后恢复原始网格位置。
 
 ---
 
-## Files Summary
+## 文件摘要
 
-| File | Type | Changes | Lines |
+| 文件 | 类型 | 更改 | 行号 |
 |------|------|---------|-------|
-| scenePass.js | Modified | Add exportMode + skipResize | 88, 92-96, 109-111 |
-| CanvasViewport.jsx | Modified | WebGL context, captureRef, captureExportFrame | 116, 167, 1289-1360 |
-| EditorLayout.jsx | Modified | Download button, captureRef, ExportModal | 14, 15, 63-64, 180-191, 418, 476-481 |
-| exportAnimation.js | New | Export pipeline (specs, bounds, ZIP, Folder) | 150 lines |
-| ExportModal.jsx | New | Modal UI + orchestration | 320 lines |
+| scenePass.js | 修改 | 添加 exportMode + skipResize | 88, 92-96, 109-111 |
+| CanvasViewport.jsx | 修改 | WebGL context、captureRef、captureExportFrame | 116, 167, 1289-1360 |
+| EditorLayout.jsx | 修改 | 下载按钮、captureRef、ExportModal | 14, 15, 63-64, 180-191, 418, 476-481 |
+| exportAnimation.js | 新建 | 导出管线（specs、bounds、ZIP、Folder） | 150 lines |
+| ExportModal.jsx | 新建 | 弹窗 UI + 编排 | 320 lines |
 
-**Total additions**: ~550 lines  
-**Total modifications**: ~30 lines
+**总新增**：~550 行  
+**总修改**：~30 行
 
 ---
 
-## References
+## 参考
 
 - [MDN: HTMLCanvasElement.toDataURL()](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
 - [MDN: WebGL2RenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext)
 - [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
 - [JSZip Documentation](https://stuk.github.io/jszip/)
-- [Stretchy Studio Project Structure](../README.md)
+- [Stretchy Studio 项目结构](../README.md)

@@ -22,6 +22,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/i18n';
 
 /* ──────────────────────────────────────────────────────────────────────────
    Constants
@@ -225,6 +226,7 @@ function useAudioSync(animation, animStore) {
    AudioTrackModal — edit audio track parameters using shadcn Dialog
 ────────────────────────────────────────────────────────────────────────── */
 function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
+  const { t } = useTranslation();
   // Local state to hold edits before saving (all in ms internally)
   const [name, setName] = useState(track.name);
   const [startOffset, setStartOffset] = useState(track.timelineStartMs);
@@ -242,12 +244,14 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
   }, [isOpen, track]);
 
   const handleSave = () => {
+    // 在 update 回调外先取好默认名称，避免与回调内局部变量 t 命名冲突
+    const fallbackName = name || t('timeline.audioTrack.untitled');
     update(p => {
       const anim = p.animations.find(a => a.id === animation.id);
       if (anim) {
         const t = anim.audioTracks.find(at => at.id === track.id);
         if (t) {
-          t.name = name || 'Untitled Audio';
+          t.name = fallbackName;
           t.timelineStartMs = Math.round(Math.max(0, startOffset));
           t.audioStartMs = Math.round(Math.max(0, audioStartMs));
           t.audioEndMs = Math.round(Math.max(audioStartMs + 100, audioStartMs + duration));
@@ -266,18 +270,18 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Music className="w-5 h-5 text-primary" />
-            <span>Audio Settings</span>
+            <span>{t('timeline.audioModal.title')}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Track Name */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold tracking-tight">Track Name</Label>
+            <Label className="text-sm font-semibold tracking-tight">{t('timeline.audioModal.trackName')}</Label>
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Background Music"
+              placeholder={t('timeline.audioModal.trackNamePlaceholder')}
               className="h-9 font-medium"
             />
           </div>
@@ -287,7 +291,7 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
           {/* Timeline Start Offset */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <Label className="text-sm font-semibold tracking-tight">Timeline Start</Label>
+              <Label className="text-sm font-semibold tracking-tight">{t('timeline.audioModal.timelineStart')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -307,13 +311,13 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
               onValueChange={([v]) => setStartOffset(v)}
               className="py-1"
             />
-            <p className="text-[10px] text-muted-foreground italic">Where on the animation timeline the audio begins.</p>
+            <p className="text-[10px] text-muted-foreground italic">{t('timeline.audioModal.timelineStartHint')}</p>
           </div>
 
           {/* Audio Start Trim */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <Label className="text-sm font-semibold tracking-tight">Audio Clip Start</Label>
+              <Label className="text-sm font-semibold tracking-tight">{t('timeline.audioModal.clipStart')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -340,13 +344,13 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
               }}
               className="py-1"
             />
-            <p className="text-[10px] text-muted-foreground italic">Trim from the beginning of the source audio file.</p>
+            <p className="text-[10px] text-muted-foreground italic">{t('timeline.audioModal.clipStartHint')}</p>
           </div>
 
           {/* Duration */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <Label className="text-sm font-semibold tracking-tight">Play Duration</Label>
+              <Label className="text-sm font-semibold tracking-tight">{t('timeline.audioModal.playDuration')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -366,21 +370,21 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
               onValueChange={([v]) => setDuration(v)}
               className="py-1"
             />
-            <p className="text-[10px] text-muted-foreground italic">Total time this audio clip will play for.</p>
+            <p className="text-[10px] text-muted-foreground italic">{t('timeline.audioModal.playDurationHint')}</p>
           </div>
 
           {/* Audio Info Card */}
           <div className="p-3 bg-muted/40 rounded-lg border border-border/50 space-y-2">
             <div className="flex justify-between text-[11px]">
-              <span className="text-muted-foreground">Source Duration</span>
+              <span className="text-muted-foreground">{t('timeline.audioModal.sourceDuration')}</span>
               <span className="font-mono">{(maxAudio / 1000).toFixed(2)} s</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-muted-foreground">Audio Segment</span>
+              <span className="text-muted-foreground">{t('timeline.audioModal.audioSegment')}</span>
               <span className="font-mono text-primary">{(audioStartMs / 1000).toFixed(2)} → {((audioStartMs + duration) / 1000).toFixed(2)} s</span>
             </div>
             <div className="flex justify-between text-[11px]">
-              <span className="text-muted-foreground">Timeline Span</span>
+              <span className="text-muted-foreground">{t('timeline.audioModal.timelineSpan')}</span>
               <span className="font-mono text-primary">{(startOffset / 1000).toFixed(2)} → {((startOffset + duration) / 1000).toFixed(2)} s</span>
             </div>
           </div>
@@ -391,13 +395,13 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all border border-transparent hover:border-border"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:shadow-[0_0_15px_rgba(var(--primary),0.4)] transition-all"
+            className="px-4 py-2 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            Apply Changes
+            {t('timeline.audioModal.applyChanges')}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -420,6 +424,7 @@ function AudioTrackRow({
   totalFrames,
   fps,
 }) {
+  const { t } = useTranslation();
   const fileInputRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -602,13 +607,13 @@ function AudioTrackRow({
     <>
       <div className="flex border-b border-border/30 relative text-[11px] bg-muted/5" style={{ height: ROW_H }}>
         {/* Label column */}
-        <div className="flex items-center justify-between px-2 border-r border-border/30 shrink-0 text-muted-foreground overflow-hidden sticky left-0 z-30 bg-card/80 backdrop-blur-sm shadow-[1px_0_2px_rgba(0,0,0,0.1)]" style={{ width: LABEL_W, minWidth: LABEL_W }}>
+        <div className="flex items-center justify-between px-2 border-r border-border/30 shrink-0 text-muted-foreground overflow-hidden sticky left-0 z-30 bg-card shadow-[1px_0_2px_rgba(0,0,0,0.1)]" style={{ width: LABEL_W, minWidth: LABEL_W }}>
           <span className="truncate text-xs font-medium">{track.name}</span>
           <div className="flex gap-0.5 ml-1">
-            <button onClick={() => setShowModal(true)} className="p-0.5 hover:text-primary transition-colors" title="Audio settings">
+            <button onClick={() => setShowModal(true)} className="p-0.5 hover:text-primary transition-colors" title={t('timeline.audioTrack.settings')}>
               <Settings size={12} />
             </button>
-            <button onClick={deleteTrack} className="p-0.5 hover:text-destructive transition-colors" title="Delete audio track">
+            <button onClick={deleteTrack} className="p-0.5 hover:text-destructive transition-colors" title={t('timeline.audioTrack.delete')}>
               <X size={12} />
             </button>
           </div>
@@ -623,7 +628,7 @@ function AudioTrackRow({
                 onClick={() => fileInputRef.current?.click()}
                 className="text-[10px] px-2 py-1 rounded bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary transition-colors"
               >
-                Upload audio
+                {t('timeline.audioTrack.upload')}
               </button>
               <input
                 ref={fileInputRef}
@@ -645,7 +650,7 @@ function AudioTrackRow({
                 right: `${100 - rightPercent}%`,
                 cursor: draggingHandle === 'body' ? 'grabbing' : 'grab',
               }}
-              title={`${track.name} — drag to move, drag edges to trim`}
+              title={t('timeline.audioTrack.dragHint', { name: track.name })}
             >
               {/* Left handle */}
               <div
@@ -681,6 +686,7 @@ function AudioTrackRow({
    TimelinePanel — main component
 ────────────────────────────────────────────────────────────────────────── */
 export function TimelinePanel() {
+  const { t } = useTranslation();
   const anim = useAnimationStore();
   const proj = useProjectStore(s => s.project);
   const update = useProjectStore(s => s.updateProject);
@@ -738,7 +744,7 @@ export function TimelinePanel() {
     update((p) => {
       p.animations.push({
         id,
-        name: 'Animation 1',
+        name: t('timeline.defaultAnimationName'),
         duration: 2000,
         fps: 24,
         tracks: [],
@@ -749,7 +755,7 @@ export function TimelinePanel() {
     anim.setFps(24);
     anim.setEndFrame(48);
     return id;
-  }, [proj.animations, update, anim]);
+  }, [proj.animations, update, anim, t]);
 
   // Audio sync hook
   useAudioSync(animation, anim);
@@ -1179,12 +1185,12 @@ export function TimelinePanel() {
       {/* ── Transport bar ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-2 py-1 border-b border-border shrink-0 bg-card">
         {/* First Frame */}
-        <TransportBtn disabled={!hasAnimation} onClick={stop} title="First Frame">
+        <TransportBtn disabled={!hasAnimation} onClick={stop} title={t('timeline.transport.firstFrame')}>
           <SkipBack size={14} />
         </TransportBtn>
 
         {/* Play / Pause */}
-        <TransportBtn disabled={!hasAnimation} onClick={togglePlay} active={anim.isPlaying} title={anim.isPlaying ? 'Pause' : 'Play'}>
+        <TransportBtn disabled={!hasAnimation} onClick={togglePlay} active={anim.isPlaying} title={anim.isPlaying ? t('timeline.transport.pause') : t('timeline.transport.play')}>
           {anim.isPlaying ? (
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
@@ -1198,12 +1204,12 @@ export function TimelinePanel() {
         </TransportBtn>
 
         {/* Last Frame */}
-        <TransportBtn disabled={!hasAnimation} onClick={lastFrame} title="Last Frame">
+        <TransportBtn disabled={!hasAnimation} onClick={lastFrame} title={t('timeline.transport.lastFrame')}>
           <SkipForward size={14} />
         </TransportBtn>
 
         {/* Repeat */}
-        <TransportBtn disabled={!hasAnimation} onClick={() => anim.setLoop(!anim.loop)} active={anim.loop} title="Repeat">
+        <TransportBtn disabled={!hasAnimation} onClick={() => anim.setLoop(!anim.loop)} active={anim.loop} title={t('timeline.transport.repeat')}>
           <Repeat size={14} />
         </TransportBtn>
 
@@ -1211,23 +1217,23 @@ export function TimelinePanel() {
 
         {/* Frame fields */}
         <NumField
-          label="Frame"
+          label={t('timeline.fields.frame')}
           value={currentFrame}
           min={startFrame}
           max={endFrame}
           onChange={(v) => anim.seekFrame(v)}
-          tip="The current playback frame."
+          tip={t('timeline.fields.frameTip')}
         />
         <NumField
-          label="Start"
+          label={t('timeline.fields.start')}
           value={startFrame}
           min={0}
           max={endFrame - 1}
           onChange={(v) => anim.setStartFrame(v)}
-          tip="The first frame of the animation loop."
+          tip={t('timeline.fields.startTip')}
         />
         <NumField
-          label="End"
+          label={t('timeline.fields.end')}
           value={endFrame}
           min={startFrame + 1}
           onChange={(v) => {
@@ -1239,13 +1245,13 @@ export function TimelinePanel() {
               });
             }
           }}
-          tip="The last frame of the animation loop."
+          tip={t('timeline.fields.endTip')}
         />
 
         <div className="w-px h-4 bg-border mx-1" />
 
         <NumField
-          label="FPS"
+          label={t('timeline.fields.fps')}
           value={fps}
           min={1}
           max={120}
@@ -1266,12 +1272,12 @@ export function TimelinePanel() {
               });
             }
           }}
-          tip="Frames per second — determines playback granularity."
+          tip={t('timeline.fields.fpsTip')}
         />
 
         {/* Speed slider */}
-        <label className="flex items-center gap-1 ml-1" title="Playback speed multiplier.">
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">Speed</span>
+        <label className="flex items-center gap-1 ml-1" title={t('timeline.transport.speedHint')}>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{t('timeline.transport.speed')}</span>
           <input
             type="range"
             min={0}
@@ -1291,7 +1297,7 @@ export function TimelinePanel() {
           disabled={!hasAnimation}
           onClick={() => anim.setLoopKeyframes && anim.setLoopKeyframes(!anim.loopKeyframes)}
           active={anim.loopKeyframes}
-          title="Loop Keyframes: When active, the animation will interpolate from the last keyframe back to the first keyframe for a seamless loop."
+          title={t('timeline.transport.loopKeyframes')}
         >
           <RotateCcw size={14} />
         </TransportBtn>
@@ -1302,7 +1308,7 @@ export function TimelinePanel() {
           onClick={() => setAutoKeyframe(!autoKeyframe)}
           active={autoKeyframe}
           className={autoKeyframe ? 'animate-recording' : ''}
-          title="Auto Keyframe: Automatically commit values to track when properties are changed"
+          title={t('timeline.transport.autoKeyframe')}
         >
           <Disc size={14} strokeWidth={2} />
         </TransportBtn>
@@ -1311,7 +1317,10 @@ export function TimelinePanel() {
         <TransportBtn
           disabled={!hasAnimation}
           onClick={() => {
-            const name = window.prompt('Audio track name:', `Audio ${(animation?.audioTracks?.length ?? 0) + 1}`);
+            const name = window.prompt(
+              t('timeline.audioTrack.namePrompt'),
+              t('timeline.audioTrack.defaultName', { index: (animation?.audioTracks?.length ?? 0) + 1 })
+            );
             if (name) {
               update((p) => {
                 const a = p.animations.find(x => x.id === anim.activeAnimationId);
@@ -1330,7 +1339,7 @@ export function TimelinePanel() {
               });
             }
           }}
-          title={!hasAnimation ? "Create an animation first to add audio" : "Add audio track"}
+          title={!hasAnimation ? t('timeline.audioTrack.missingAnimation') : t('timeline.audioTrack.add')}
         >
           <Music size={14} />
         </TransportBtn>
@@ -1350,12 +1359,12 @@ export function TimelinePanel() {
             onClick={ensureAnimation}
             className="text-[10px] px-2 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            + New Animation
+            {t('timeline.transport.newAnimation')}
           </button>
         )}
 
         {/* K key hint */}
-        <span className="text-[10px] text-muted-foreground border border-border/40 px-1 py-0.5 font-mono" title="Press K to keyframe selected nodes">
+        <span className="text-[10px] text-muted-foreground border border-border/40 px-1 py-0.5 font-mono" title={t('timeline.transport.keyHint')}>
           K
         </span>
       </div>
@@ -1369,8 +1378,8 @@ export function TimelinePanel() {
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-[11px] text-muted-foreground/60">
               {hasAnimation
-                ? 'Select a node and press K to add keyframes or click 🎵 to add audio'
-                : 'Create an animation to begin'}
+                ? t('timeline.empty.withAnimation')
+                : t('timeline.empty.noAnimation')}
             </p>
           </div>
         ) : (
@@ -1445,7 +1454,7 @@ export function TimelinePanel() {
               >
                 {/* Node label */}
                 <div
-                  className="flex items-center px-2 border-r border-border/30 shrink-0 text-muted-foreground overflow-hidden sticky left-0 z-30 bg-card/80 backdrop-blur-sm shadow-[1px_0_2px_rgba(0,0,0,0.1)]"
+                  className="flex items-center px-2 border-r border-border/30 shrink-0 text-muted-foreground overflow-hidden sticky left-0 z-30 bg-card shadow-[1px_0_2px_rgba(0,0,0,0.1)]"
                   style={{ width: LABEL_W, minWidth: LABEL_W }}
                   title={row.name}
                 >
@@ -1528,7 +1537,7 @@ export function TimelinePanel() {
                         <ContextMenu key={timeMs}>
                           <ContextMenuTrigger>
                             <div
-                              title={`Frame ${frame} — click to select, drag to move`}
+                              title={t('timeline.keyframe.hint', { frame })}
                               onPointerDown={(e) => onKeyframePointerDown(e, row.nodeId, timeMs)}
                               className={[
                                 'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 cursor-ew-resize',
@@ -1544,37 +1553,37 @@ export function TimelinePanel() {
                           <ContextMenuContent>
                             <ContextMenuItem onSelect={() => copyKeyframe(row.nodeId, timeMs)}>
                               <Copy className="w-3 h-3 mr-2 opacity-70" />
-                              Copy
+                              {t('common.copy')}
                             </ContextMenuItem>
                             <ContextMenuItem disabled={!clipboard} onSelect={pasteKeyframes}>
                               <Clipboard className="w-3 h-3 mr-2 opacity-70" />
-                              Paste
+                              {t('timeline.contextMenu.paste')}
                             </ContextMenuItem>
                             <ContextMenuSeparator />
                             <ContextMenuItem onSelect={() => setEasingAt(row.nodeId, timeMs, 'linear')}>
                               <CurveIcon type="linear" className="mr-2 opacity-70" />
-                              Linear
+                              {t('timeline.contextMenu.linear')}
                             </ContextMenuItem>
                             <ContextMenuItem onSelect={() => setEasingAt(row.nodeId, timeMs, 'ease-both')}>
                               <CurveIcon type="ease-both" className="mr-2 opacity-70" />
-                              Ease Both
+                              {t('timeline.contextMenu.easeBoth')}
                             </ContextMenuItem>
                             <ContextMenuItem onSelect={() => setEasingAt(row.nodeId, timeMs, 'ease-in')}>
                               <CurveIcon type="ease-in" className="mr-2 opacity-70" />
-                              Ease In
+                              {t('timeline.contextMenu.easeIn')}
                             </ContextMenuItem>
                             <ContextMenuItem onSelect={() => setEasingAt(row.nodeId, timeMs, 'ease-out')}>
                               <CurveIcon type="ease-out" className="mr-2 opacity-70" />
-                              Ease Out
+                              {t('timeline.contextMenu.easeOut')}
                             </ContextMenuItem>
                             <ContextMenuItem onSelect={() => setEasingAt(row.nodeId, timeMs, 'stepped')}>
                               <CurveIcon type="stepped" className="mr-2 opacity-70" />
-                              Stepped
+                              {t('timeline.contextMenu.stepped')}
                             </ContextMenuItem>
                             <ContextMenuSeparator />
                             <ContextMenuItem className="text-destructive" onSelect={() => removeKeyframeAt(row.nodeId, timeMs)}>
                               <Trash2 className="w-3 h-3 mr-2 opacity-70" />
-                              Remove
+                              {t('common.remove')}
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
@@ -1584,7 +1593,7 @@ export function TimelinePanel() {
                     {/* Phantom Loop Keyframe */}
                     {anim.loopKeyframes && row.times.length > 0 && !row.times.includes(frameToMs(endFrame, fps)) && (
                       <div
-                        title={`Loop wrap-around: references first keyframe at frame ${msToFrame(row.times[0], fps)}`}
+                        title={t('timeline.keyframe.loopWrapHint', { frame: msToFrame(row.times[0], fps) })}
                         className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border border-primary/40 border-dashed bg-transparent z-10 pointer-events-none"
                         style={{ left: frameToPercentage(endFrame) }}
                       />

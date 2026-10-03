@@ -5,18 +5,21 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import { lightThemePresets, darkThemePresets } from '@/lib/themePresets';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useTranslation } from '@/i18n';
 
 
 const PhoneLayout = ({ children, isLandscape }) => {
   const { themeMode, setThemeMode, openThemeModal, setLightTheme, setDarkTheme } = useTheme();
+  const { t } = useTranslation();
 
   const handleThemeSelectClick = () => {
+    // 依据当前主题模式，打开对应的主题选择弹窗
     const config = themeMode === 'dark' ? {
-      title: 'Select Dark Theme',
+      title: t('editor.phone.selectDarkTheme'),
       themes: darkThemePresets,
       onSelect: setDarkTheme,
     } : {
-      title: 'Select Light Theme',
+      title: t('editor.phone.selectLightTheme'),
       themes: lightThemePresets,
       onSelect: setLightTheme,
     };
@@ -51,12 +54,12 @@ const PhoneLayout = ({ children, isLandscape }) => {
                 onValueChange={(value) => {
                   if (value) setThemeMode(value);
                 }}
-                aria-label="Theme mode"
+                aria-label={t('editor.phone.themeMode')}
               >
-                <ToggleGroupItem value="light" aria-label="Light mode">
+                <ToggleGroupItem value="light" aria-label={t('editor.phone.lightMode')}>
                   <Sun className="h-5 w-5" />
                 </ToggleGroupItem>
-                <ToggleGroupItem value="dark" aria-label="Dark mode">
+                <ToggleGroupItem value="dark" aria-label={t('editor.phone.darkMode')}>
                   <Moon className="h-5 w-5" />
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -65,7 +68,7 @@ const PhoneLayout = ({ children, isLandscape }) => {
                 variant="outline"
                 onClick={handleThemeSelectClick}
               >
-                Select Theme
+                {t('editor.phone.selectTheme')}
               </Button>
             </div>
           </PopoverContent>

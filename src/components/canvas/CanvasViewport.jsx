@@ -26,6 +26,7 @@ import { computeWorldMatrices, mat3Inverse, mat3Identity } from '@/renderer/tran
 import { retriangulate } from '@/mesh/generate';
 import { GizmoOverlay } from '@/components/canvas/GizmoOverlay';
 import { saveProject, loadProject } from '@/io/projectFile';
+import { useTranslation } from '@/i18n';
 
 /* ──────────────────────────────────────────────────────────────────────────
    Helpers
@@ -467,6 +468,9 @@ export default function CanvasViewport({
   const brushCircleRef = useRef(null);   // SVG <circle> for brush cursor — mutated directly for perf
   const meshOverriddenParts = useRef(new Set()); // parts whose GPU mesh was overridden last frame
   const fileInputRef = useRef(null);
+
+  // i18n：订阅语言变化以重新渲染界面文案
+  const { t } = useTranslation();
 
   // PSD import wizard state
   const wizardStep = useEditorStore(s => s.wizardStep);
@@ -2643,51 +2647,50 @@ export default function CanvasViewport({
           />
           <div
             onClick={handlePanelClick}
-            className="max-w-md w-full flex flex-col items-center gap-8 p-10 rounded-[3rem] 
-                       border border-border/40 bg-card/30 backdrop-blur-2xl 
-                       hover:bg-card/40 hover:border-primary/30 hover:scale-[1.01]
-                       transition-all duration-300 group cursor-pointer shadow-2xl ring-1 ring-white/5
-                       animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out pointer-events-auto"
+            className="max-w-md w-full flex flex-col items-center gap-6 p-8 rounded-lg 
+                       border border-border bg-card 
+                       hover:bg-muted/30 hover:border-border/80 
+                       transition-colors duration-200 group cursor-pointer 
+                       animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out pointer-events-auto"
           >
-            {/* Upload Button */}
-            <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center 
-                            border border-primary/20 group-hover:bg-primary/20 group-hover:scale-110 
-                            transition-all duration-500 shadow-xl shadow-primary/10">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-primary">
+            {/* Upload Icon */}
+            <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center 
+                            border border-primary/20 group-hover:bg-primary/15 
+                            transition-colors duration-200">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-primary">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-3xl font-bold tracking-tight text-foreground/90 leading-tight">
-                Drop or <span className="text-primary">click</span> to upload a <br />
-                <span className="text-foreground underline underline-offset-8 decoration-primary/30">.stretch</span> or <span className="text-foreground underline underline-offset-8 decoration-primary/30">PSD/PNG</span>
+            <div className="space-y-2">
+              <p className="text-2xl font-semibold tracking-tight text-foreground leading-tight">
+                {t('canvas.empty.dropPrefix')}<span className="text-primary">{t('canvas.empty.click')}</span>{t('canvas.empty.dropMiddle')}<br />
+                <span className="text-foreground underline underline-offset-4 decoration-border">{t('canvas.empty.stretchTag')}</span>{t('canvas.empty.dropOr')}<span className="text-foreground underline underline-offset-4 decoration-border">{t('canvas.empty.psdPngTag')}</span>
               </p>
-              <p className="text-sm text-muted-foreground/60 select-none">
-                Character rigging and animation in seconds.
+              <p className="text-sm text-muted-foreground select-none">
+                {t('canvas.empty.subtitle')}
               </p>
             </div>
 
             {/* Separator */}
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+            <div className="w-full h-px bg-border" />
 
             {/* Help / Guidance Card Section */}
             <div className="w-full space-y-4 pt-2">
-              <h3 className="text-xs font-bold text-foreground/70 uppercase tracking-widest">Don't have a layered PSD?</h3>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('canvas.empty.noPsdTitle')}</h3>
 
               <a
                 href="https://huggingface.co/spaces/24yearsold/see-through-demo"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl 
-                           bg-primary text-primary-foreground text-xs font-black 
-                           hover:brightness-110 active:scale-[0.98] transition-all 
-                           shadow-lg shadow-primary/25"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-md 
+                           bg-primary text-primary-foreground text-xs font-medium 
+                           hover:bg-primary/90 transition-colors"
               >
-                LAYER-IFY YOUR IMAGE <br /> (Free HuggingFace Space)
+                {t('canvas.empty.layerify')} <br /> {t('canvas.empty.freeSpace')}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-80">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                   <polyline points="15 3 21 3 21 9" />
@@ -2695,9 +2698,8 @@ export default function CanvasViewport({
                 </svg>
               </a>
 
-              <p className="text-[10px] text-muted-foreground/50 leading-relaxed max-w-[280px] mx-auto pointer-events-auto">
-                Provided by the authors of <a href="https://github.com/shitagaki-lab/see-through" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:underline font-medium" onClick={(e) => e.stopPropagation()}>See-through</a>,
-                an AI model that automatically decomposes single character illustrations into ready-to-animate layers.
+              <p className="text-[10px] text-muted-foreground leading-relaxed max-w-[280px] mx-auto pointer-events-auto">
+                {t('canvas.empty.providedByPrefix')}<a href="https://github.com/shitagaki-lab/see-through" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:underline font-medium" onClick={(e) => e.stopPropagation()}>See-through</a>{t('canvas.empty.providedBySuffix')}
               </p>
             </div>
           </div>
@@ -2730,17 +2732,15 @@ export default function CanvasViewport({
       <AlertDialog open={confirmWipeOpen} onOpenChange={setConfirmWipeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Wipe current project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('canvas.wipe.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Importing a new project or PSD will permanently delete all existing layers,
-              meshes, and animations in your current project. This action
-              cannot be undone.
+              {t('canvas.wipe.description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmWipe} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Wipe & Load
+              {t('canvas.wipe.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

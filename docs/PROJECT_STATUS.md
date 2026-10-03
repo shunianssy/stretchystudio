@@ -1,28 +1,28 @@
-# Stretchy Studio — Project Overview & Status
+# Stretchy Studio —— 项目概览与状态
 
-**Last Updated:** 2026-04-12 · **Current Phase:** M6 Save/Load Project · **Next Phase:** M7 Spritesheet Export
-
----
-
-## 1. Project Vision
-
-Stretchy Studio is a 2D animation tool targeting illustrators and animators. Import PSD/PNG → group layers → pose on an After Effects-style timeline → export spritesheet. Simple, intuitive, end-to-end workflow.
-
-**Key Design Principle:** Ship thin vertical slices. Every milestone leaves the app usable end-to-end.
-
-### What's Different from Original Plan
-
-The original design favored Live2D-style parameters and abstract deformers (complex UX). The revised approach is **timeline-first**:
-- Dropped parameter system entirely
-- Direct keyframing of transforms and mesh vertices
-- After Effects workflow (not Live2D)
-- Lower learning curve for 2D animators
+**最后更新：** 2026-04-12 · **当前阶段：** M6 保存/载入项目 · **下一阶段：** M7 精灵表导出
 
 ---
 
-## 2. Architecture
+## 1. 项目愿景
 
-### Directory Layout
+Stretchy Studio 是一款面向插画师和动画师的 2D 动画工具。导入 PSD/PNG → 将图层分组 → 在 After Effects 风格的时间轴上摆姿势 → 导出精灵表。简单、直观、端到端的工作流程。
+
+**核心设计原则：** 交付薄的垂直切片。每个里程碑都让应用保持端到端可用。
+
+### 与原计划的差异
+
+原设计倾向于 Live2D 风格的参数和抽象变形器（复杂的 UX）。修订后的方法以**时间轴优先**：
+- 完全放弃参数系统
+- 直接为变换和网格顶点制作关键帧
+- After Effects 工作流程（而非 Live2D）
+- 对 2D 动画师而言学习门槛更低
+
+---
+
+## 2. 架构
+
+### 目录布局
 
 ```
 src/
@@ -54,7 +54,7 @@ src/
     export.js              # [M5] Spritesheet/Zip builder
 ```
 
-### Data Model
+### 数据模型
 
 ```
 Project
@@ -69,370 +69,370 @@ Project
 └── animations: [{ id, name, duration, fps, tracks: [...] }] (M4+)
 ```
 
-### Rendering Pipeline
+### 渲染管线
 
-1. **Transform Pass** (depth-first tree walk):
-   - Compute world matrices: `parent.world × node.local`
-   - Store transient `node._worldMatrix` for each node
-2. **Draw Pass** (sorted by `draw_order`):
-   - Per-part MVP = camera × worldMatrix
-   - Render mesh, wireframe, vertices, overlays
-   - Respects `visibility` and `opacity`
-
----
-
-## 3. Completed Milestones
-
-### ✅ M1 — Canvas Foundation (Completed)
-- WebGL2 renderer skeleton with VAO per part
-- PNG single-layer import & automatic triangulation
-- Vertex dragging with undo/redo
-- Basic viewport zoom/pan
-
-### ✅ M2 — Auto Mesh & PSD Import (Completed)
-- **PSD Import** (`ag-psd` wrapper): multi-layer extraction, layer names preserved, correct z-order
-- **Mesh Generation Sliders**: Alpha threshold, smooth passes, grid spacing, edge padding, edge points
-- **Per-Part Mesh Override**: Each layer can have custom mesh settings
-- **Viewport Navigation**: Zoom-toward-cursor, Alt+drag pan, smooth controls
-- **Manual Mesh Editing**: Add/remove vertex tools (no auto-retriangulation until remesh)
-- **Layer Panel v1**: Names, draw-order reorder buttons
-- **Visibility Overlays**: Global toggles for image, wireframe, vertices, edge outline
-- **Inspector Panel**: Overlay toggles, tool mode buttons, mesh settings, per-part opacity
-
-### ✅ M3 — Groups & Hierarchical Transforms (Completed 2026-04-08)
-- **Matrix Math Library** (`src/renderer/transforms.js`): 3×3 affine math, world matrix composition
-- **Scene Graph**: Group nodes with transform inheritance, `reparentNode` action
-- **Transform Gizmo** (`GizmoOverlay.jsx`): Drag move handle (translate) + rotation arc handle on canvas
-- **Transform Inspector**: Numeric inputs for X, Y, Rotation (°), Scale (%), Pivot
-- **Layer Panel Tabs**:
-  - **DRAW ORDER Tab**: Flat draw_order list with group-name chips, drag-to-reorder (squeeze behavior), right-click context menu
-  - **Groups Tab**: Tree view, drag-to-reparent, collapsible groups with auto-expand on selection
-- **PSD Auto-Organizer** (`psdOrganizer.js`):
-  - **Character Format Detection**: Triggers if ≥4 layer names match a library of 23 recognized character tags (e.g., brow, iris, neckwear, topwear, footwear).
-  - **Hierarchical Grouping**: Automatically nests layers into a structured **Head** (with an **Eyes** subgroup), **Body** (with **Upperbody** and **Lowerbody**), and **Extras** hierarchy.
-  - **Preserved Draw Order**: Ensures that the original PSD layer depth is maintained within the new group structure, respecting the artist's manual sequencing.
-- **Renderer Integration**: Per-part world matrices, hierarchical transforms work end-to-end
-- **Mesh Generation Refinements** (`src/mesh/contour.js`, `src/mesh/generate.js`):
-  - **Multi-seed contour tracing**: Traces all separated regions (eyes, arms, etc.) independently, not just the first one
-  - **Boundary dilation**: Edge vertices placed 2px outside visual boundary → mesh covers full image content → texture alpha provides visual clip
-  - **Per-contour vertex distribution**: Allocates `numEdgePoints` proportionally by perimeter across all detected regions
-- **Iris Clipping** (`src/renderer/scenePass.js`):
-  - **Stencil-based masking**: Irides are automatically clipped to their respective eyewhite layers.
-  - **Side Matching**: Correctly matches `irides-l` to `eyewhite-l` (and -r/-r) using name suffixes to handle split-eye characters.
-  - **Alpha-Aware Masks**: Uses shader-level `discard` to ensure clipping follows the visual shape of the eyewhite, even for mesh-less quad parts.
-- **Bugs Fixed**: PSD opacity (was 0), mesh generation (concurrent workers), layer render order, depth tab drag behavior, mesh clipping (chord-shortcut effect), multi-part edge point coverage
-
-**Exit Criteria Met:** Create group → parent layers → rotate group → children rotate around pivot. Depth tab unchanged. Groups tab drag reparents without affecting draw_order. Mesh now covers outer areas without clipping; multiple separated parts all get appropriate edge point coverage.
-
-**M3 Refinement (Mesh-on-Demand Architecture):**
-- **Auto-mesh removed:** Layers no longer generate mesh on import. Layers render as textured quads until user explicitly clicks "Generate Mesh" in Inspector.
-- **Alpha-based selection:** Layer selection now uses alpha channel sampling instead of mesh intersection. Works for mesh-less parts; vertex proximity check still works when mesh exists.
-- **Cropped bounding box:** Gizmo bounding box for mesh-less parts now crops to actual opaque pixels (computed once on import), not full image bounds.
-- **Fallback quad rendering:** Each part gets a simple 2-triangle quad VAO for texture rendering without mesh. Replaced by actual mesh when user generates it.
-- **Inspector changes:**
-  - "Generate Mesh" button when no mesh; "Remesh" button when mesh exists
-  - "Delete Mesh" option to revert to quad fallback
-  - Mesh settings remain accessible for pre-configuration before generation
-- **Benefits:** Faster import (no mesh gen), cleaner workflow (mesh as opt-in), lower memory footprint, better for M4 animation pipeline (easier keyframing without dense vertex data)
+1. **变换处理**（深度优先树遍历）：
+   - 计算世界矩阵：`parent.world × node.local`
+   - 为每个节点存储瞬时的 `node._worldMatrix`
+2. **绘制处理**（按 `draw_order` 排序）：
+   - 每个部件的 MVP = camera × worldMatrix
+   - 渲染网格、线框、顶点、叠加层
+   - 遵循 `visibility` 和 `opacity`
 
 ---
 
-## 4. Upcoming Milestones
+## 3. 已完成的里程碑
 
-### ✅ M4 — Timeline & Animation Management (Completed 2026-04-11)
-- **Editor Mode Toggle**: `Staging` (M3 setup) | `Animation` (M4 timeline) modes. Toggle located in top-left of canvas.
-- **Timeline Interaction Engine**:
-  - **Draggable Keyframes**: Left-click and drag diamond markers to adjust timing; snaps to integer frames.
-  - **Multi-Selection & Box Select**: Shift-click to toggle, or drag a marquee box in the track background to select groups of keyframes.
-  - **Group Move**: Move multiple selected keyframes at once, preserving relative timing.
-  - **Clipboard (Ctrl+C/V)**: Copy-paste keyframes across different nodes or different times.
-  - **Deletion**: Support for `Backspace`/`Delete` for group removal.
-- **Animation Management Panel**:
-  - **New Sidebar Section**: Dedicated "Animations" panel in the right sidebar below the Inspector.
-  - **CRUD Operations**: Create new clips, switch active clip (auto-resets playhead), rename with edit pencil icon, and delete with confirmation modal.
-- **Ruler & Loop Handling**:
-  - **Draggable Loop Markers**: Ruler contains Start and End flags to visually define loop ranges.
-  - **Transport Controls**: Play/Pause/Stop/Loop toggles with numeric FPS and current frame fields.
-- **Playback & Interpolation**: 
-  - Smooth transform lerping driven by the rAF loop.
-  - Animation properties are separated from base node state via a `poseOverrides` map.
-- **Mode-based UI Persistence**: Timeline and Animation panels automatically hide in `Staging` mode to keep the workspace clean for mesh setup.
-- **UI UX Polish**: Alt+Scroll zooming for horizontal scale, native overflow for panning.
+### ✅ M1 —— 画布基础（已完成）
+- 每个部件带 VAO 的 WebGL2 渲染器骨架
+- PNG 单图层导入与自动三角剖分
+- 带撤销/重做的顶点拖动
+- 基础视口缩放/平移
 
-**Exit Criteria Met:** User can import PSD, setup groups, switch to Animation mode, create multiple clips ("Idle", "Walk"), pose with draggable keyframes, copy-paste poses between nodes, and play back loops smoothly. 
+### ✅ M2 —— 自动网格与 PSD 导入（已完成）
+- **PSD 导入**（`ag-psd` 封装）：多图层提取、保留图层名称、正确的 z 顺序
+- **网格生成滑块**：透明度阈值、平滑次数、网格间距、边缘留白、边缘点数
+- **按部件网格覆盖**：每个图层可自定义网格设置
+- **视口导航**：朝光标缩放、Alt+拖动平移、平滑控制
+- **手动网格编辑**：添加/删除顶点工具（在重网格前不自动重新三角剖分）
+- **Layer Panel v1**：名称、绘制顺序重排按钮
+- **可见性叠加层**：图像、线框、顶点、边缘轮廓的全局开关
+- **Inspector 面板**：叠加层开关、工具模式按钮、网格设置、按部件不透明度
+
+### ✅ M3 —— 组与层级变换（完成于 2026-04-08）
+- **矩阵数学库**（`src/renderer/transforms.js`）：3×3 仿射数学、世界矩阵复合
+- **场景图**：带变换继承的组节点、`reparentNode` 操作
+- **变换 Gizmo**（`GizmoOverlay.jsx`）：画布上的拖动移动手柄（平移）+ 旋转弧线手柄
+- **变换 Inspector**：X、Y、Rotation (°)、Scale (%)、Pivot 的数字输入
+- **Layer Panel 标签页**：
+  - **DRAW ORDER 标签页**：带组名 chip 的扁平 draw_order 列表，拖动重排（挤压行为），右键上下文菜单
+  - **Groups 标签页**：树视图，拖动重新设为子级，可折叠组，选中时自动展开
+- **PSD 自动组织器**（`psdOrganizer.js`）：
+  - **角色格式检测**：若 ≥4 个图层名称匹配 23 个已识别角色标签库（例如 brow、iris、neckwear、topwear、footwear）则触发。
+  - **层级分组**：自动将图层嵌套进结构化的 **Head**（含 **Eyes** 子组）、**Body**（含 **Upperbody** 和 **Lowerbody**）和 **Extras** 层级。
+  - **保留的绘制顺序**：确保在新组结构内保持原始 PSD 图层深度，尊重画师的手动排序。
+- **渲染器集成**：按部件世界矩阵，层级变换端到端工作
+- **网格生成精化**（`src/mesh/contour.js`、`src/mesh/generate.js`）：
+  - **多种子轮廓追踪**：独立追踪所有分离区域（眼、手臂等），而不仅是第一个
+  - **边界膨胀**：边缘顶点放置在视觉边界外 2px → 网格覆盖完整图像内容 → 贴图 alpha 提供视觉裁剪
+  - **按轮廓顶点分配**：按周长在检测到的所有区域间按比例分配 `numEdgePoints`
+- **虹膜裁剪**（`src/renderer/scenePass.js`）：
+  - **基于模板（Stencil）的遮罩**：虹膜自动裁剪到各自对应的眼白图层。
+  - **左右匹配**：使用名称后缀正确将 `irides-l` 匹配到 `eyewhite-l`（以及 -r/-r），以处理拆分眼睛的角色。
+  - **Alpha 感知遮罩**：使用着色器级 `discard` 确保裁剪遵循眼白的视觉形状，即使是无网格的四边形部件。
+- **修复的 Bug**：PSD 不透明度（曾为 0）、网格生成（并发 worker）、图层渲染顺序、深度标签页拖动行为、网格裁剪（弦捷径效应）、多部件边缘点覆盖
+
+**达成的退出标准：** 创建组 → 将图层设为子级 → 旋转组 → 子级围绕轴心旋转。深度标签页不变。Groups 标签页拖动重新设为子级而不影响 draw_order。网格现在覆盖外部区域且无裁剪；多个分离部件都获得适当的边缘点覆盖。
+
+**M3 精化（按需网格架构）：**
+- **移除自动网格：** 图层导入时不再生成网格。图层以带贴图的四边形渲染，直到用户在 Inspector 中显式点击 “Generate Mesh”。
+- **基于 Alpha 的选择：** 图层选择现在使用 alpha 通道采样而非网格相交。对无网格部件有效；当网格存在时顶点邻近检查仍然有效。
+- **裁剪包围盒：** 无网格部件的 Gizmo 包围盒现在裁剪到实际不透明像素（导入时计算一次），而非完整图像边界。
+- **回退四边形渲染：** 每个部件获得一个简单的 2 三角形四边形 VAO 用于无网格贴图渲染。当用户生成网格后由实际网格替换。
+- **Inspector 更改：**
+  - 无网格时显示 “Generate Mesh” 按钮；有网格时显示 “Remesh” 按钮
+  - “Delete Mesh” 选项以回退到四边形回退
+  - 网格设置在生成前仍可访问以进行预配置
+- **收益：** 更快的导入（无网格生成）、更干净的工作流程（网格作为可选）、更低的内存占用、更利于 M4 动画管线（无需密集顶点数据即可更轻松地关键帧）
 
 ---
 
-### ✅ M5 — Armature Auto-Rig & Skeleton Animation (Completed 2026-04-12)
+## 4. 即将到来的里程碑
+
+### ✅ M4 —— 时间轴与动画管理（完成于 2026-04-11）
+- **编辑器模式切换**：`Staging`（M3 设置）| `Animation`（M4 时间轴）模式。切换位于画布左上角。
+- **时间轴交互引擎**：
+  - **可拖动关键帧**：左键单击并拖动菱形标记以调整时序；吸附到整数帧。
+  - **多选与框选**：Shift+单击切换，或在轨道背景中拖动选择框以选择成组关键帧。
+  - **成组移动**：一次移动多个选中的关键帧，保留相对时序。
+  - **剪贴板（Ctrl+C/V）**：跨不同节点或不同时间复制粘贴关键帧。
+  - **删除**：支持 `Backspace`/`Delete` 进行成组移除。
+- **动画管理面板**：
+  - **新侧边栏区域**：右侧边栏 Inspector 下方的专用 “Animations” 面板。
+  - **CRUD 操作**：创建新片段、切换活动片段（自动重置播放头）、用编辑铅笔图标重命名、用确认弹窗删除。
+- **标尺与循环处理**：
+  - **可拖动循环标记**：标尺包含 Start 和 End 标志，以可视地定义循环范围。
+  - **传输控制**：Play/Pause/Stop/Loop 切换，带数字 FPS 和当前帧字段。
+- **播放与插值**： 
+  - 由 rAF 循环驱动的平滑变换 lerp。
+  - 动画属性通过 `poseOverrides` 映射与基础节点状态分离。
+- **基于模式的 UI 持久化**：时间轴和动画面板在 `Staging` 模式中自动隐藏，以保持网格设置工作区整洁。
+- **UI UX 打磨**：Alt+Scroll 水平缩放，原生溢出用于平移。
+
+**达成的退出标准：** 用户可以导入 PSD、设置组、切换到 Animation 模式、创建多个片段（“Idle”、“Walk”）、用可拖动关键帧摆姿势、在节点间复制粘贴姿势，并平滑循环回放。
+
+---
+
+### ✅ M5 —— 骨架自动绑定与骨骼动画（完成于 2026-04-12）
  
- **Goal:** Enable rigging of see-through PSD characters for vtuber-style animation via both heuristic and AI-powered skeleton detection.
+ **目标：** 通过启发式和 AI 驱动的骨架检测，为 vtuber 风格动画启用 see-through PSD 角色的绑定。
 
- - **PSD Import Wizard** (Added 2026-04-12):
-   - **3-Step Flow**: Choose rigging method → Load/estimate skeleton → Adjust joints on canvas before finalizing
-   - **Step 1 (Choose)**: User selects:
-     - *Rig manually*: Fast heuristic skeleton from layer bounding boxes (no download)
-     - *Rig with DWPose*: High-accuracy AI pose detection (~50MB model)
-     - *Skip rigging*: Import flat, no skeleton
-   - **Step 2 (Load/Estimate)**: 
-     - Manual path: Instantly estimates skeleton via `estimateSkeletonFromBounds()`
-     - DWPose path: Shows model status, upload .onnx or download from HuggingFace
-   - **Step 3 (Adjust)**: Full-canvas joint adjustment with floating toolbar
-     - Draggable yellow joint circles to reposition skeleton
-     - Back button: Reverts project snapshot, returns to choose step (at any time before Finish)
-     - Finish button: Commits the rig and closes wizard
+ - **PSD 导入向导**（2026-04-12 添加）：
+   - **3 步流程**：选择绑定方法 → 载入/估算骨架 → 在提交前于画布上调整关节
+   - **步骤 1（选择）**：用户选择：
+     - *Rig manually*：从图层包围盒快速启发式生成骨架（无下载）
+     - *Rig with DWPose*：高精度 AI 姿态检测（约 50MB 模型）
+     - *Skip rigging*：平铺导入，无骨架
+   - **步骤 2（载入/估算）**： 
+     - 手动路径：通过 `estimateSkeletonFromBounds()` 即时估算骨架
+     - DWPose 路径：显示模型状态，上传 .onnx 或从 HuggingFace 下载
+   - **步骤 3（调整）**：带浮动工具栏的全画布关节调整
+     - 可拖动的黄色关节圆圈以重新定位骨架
+     - Back 按钮：回退项目快照，返回选择步骤（在 Finish 前的任意时刻）
+     - Finish 按钮：提交绑定并关闭向导
 
- - **Heuristic Skeleton Estimation** (`src/io/armatureOrganizer.js`, new `estimateSkeletonFromBounds`):
-   - Maps layer bounding boxes to keypoints: head from `face`/`front hair` bounds, shoulders from `topwear`, arms/legs interpolated
-   - Falls back to sensible defaults if layers are missing
-   - Zero external dependencies; runs instantly on import
+ - **启发式骨架估算**（`src/io/armatureOrganizer.js`，新增 `estimateSkeletonFromBounds`）：
+   - 将图层包围盒映射到关键点：头部来自 `face`/`front hair` 边界，肩部来自 `topwear`，手臂/腿部进行插值
+   - 若缺少图层则回退到合理的默认值
+   - 零外部依赖；导入时即时运行
 
- - **DWPose ONNX Integration** (`src/io/armatureOrganizer.js`):
-   - Load and cache DWPose session (dw-ll_ucoco_384.onnx) from HuggingFace CDN
-   - 133-keypoint pose detection with SimCC output format
-   - Keypoint mapping to character skeleton: neck, waist, shoulder midpoint, and limb joints (elbows/knees)
+ - **DWPose ONNX 集成**（`src/io/armatureOrganizer.js`）：
+   - 从 HuggingFace CDN 载入并缓存 DWPose 会话（dw-ll_ucoco_384.onnx）
+   - 133 关键点姿态检测，使用 SimCC 输出格式
+   - 关键点映射到角色骨架：颈部、腰部、肩部中点、肢体关节（肘/膝）
 
-- **Limb Bending & Vertex Skinning** (Added 2026-04-12):
-  - **Axis-Aware Weighting**: Vertices in limb layers (arms/legs) are automatically assigned weights by projecting them onto the shoulder-elbow or hip-knee axis. 
-  - **JS-Driven Skinning**: Elbow and knee rotations locally deform mesh vertices in real-time via a custom skinning engine in `SkeletonOverlay.jsx`.
-  - **Auto-Keyframing**: Keyframing a limb joint automatically captures the deformed vertex positions for the associated part.
+- **肢体弯曲与顶点蒙皮**（2026-04-12 添加）：
+  - **轴感知权重**：肢体图层（手臂/腿部）中的顶点通过将其投影到肩-肘或髋-膝轴来自动分配权重。 
+  - **JS 驱动蒙皮**：肘部和膝盖旋转通过 `SkeletonOverlay.jsx` 中自定义蒙皮引擎实时局部变形网格顶点。
+  - **自动关键帧**：为肢体关节制作关键帧会自动捕获关联部件的变形后顶点位置。
    
- - **Armature Node Builder**:
-  - Create hierarchical bone structure: `root → torso → head → eyes`, `root → [left/right]Leg → [left/right]Knee`, `torso → [left/right]Arm → [left/right]Elbow`
-   - All bones are group nodes with `boneRole` property
-   - Joint positions stored as `transform.pivotX/Y` (no new data types needed)
+ - **骨架节点构建器**：
+  - 创建层级骨骼结构：`root → torso → head → eyes`、`root → [left/right]Leg → [left/right]Knee`、`torso → [left/right]Arm → [left/right]Elbow`
+   - 所有骨骼都是带 `boneRole` 属性的组节点
+   - 关节位置存储为 `transform.pivotX/Y`（无需新的数据类型）
    
- - **Skeleton Overlay & Deformation** (`src/components/canvas/SkeletonOverlay.jsx`):
-   - SVG overlay showing bone lines (cyan) and joint circles
-   - **Skeleton Edit Mode** (staging only):
-     - Draggable joint dots to reposition bone pivots
-     - Click joint circle to select bone → GizmoOverlay appears for fine-tuning
-     - In animation mode: rotation written to draftPose; press K to keyframe
-     - **Limb Rotation Handles**: Amber arcs at elbows and knees trigger JS-driven vertex deformation.
-     - **Skinning Commit**: In staging mode, limb rotations commit deformed vertices directly to the base mesh on release.
-   - **2D Iris Trackpad** (Added 2026-04-11):
-     - Dedicated 80x80px square trackpad for the `eyes` bone
-     - Positioned -120px above the head to maintain clear view of expressions
+ - **骨架叠加层与变形**（`src/components/canvas/SkeletonOverlay.jsx`）：
+   - 显示骨骼线（青色）和关节圆圈的 SVG 叠加层
+   - **骨架编辑模式**（仅 Staging）：
+     - 可拖动的关节点以重新定位骨骼轴心
+     - 单击关节圆圈选择骨骼 → 出现 GizmoOverlay 以进行微调
+     - 在动画模式中：旋转写入 draftPose；按 K 制作关键帧
+     - **肢体旋转手柄**：肘部和膝盖处的琥珀色弧线触发 JS 驱动的顶点变形。
+     - **蒙皮提交**：在 Staging 模式中，肢体旋转在松开时直接将变形后的顶点提交到基础网格。
+   - **2D 虹膜触控板**（2026-04-11 添加）：
+     - 专用于 `eyes` 骨骼的 80x80px 方形触控板
+     - 定位在头部上方 -120px，以保持表情的清晰视图
  
- **Exit Criteria Met:** 
- - Import see-through PSD → 3-step import wizard appears
- - **Manual path**: Choose "Rig manually" → skeleton instantly estimated → adjust joints on canvas → Finish
- - **DWPose path**: Choose "Rig with DWPose" → download/upload model → DWPose runs → adjust joints → Finish
- - **Back anytime**: From adjust step, click Back → project reverts to pre-rig state, wizard reopens at choose step
- - **Animation**: Switch to animation mode → drag arcs + press K to keyframe → scrub timeline → character animates with bone rotations and smooth limb bending
+ **达成的退出标准：** 
+ - 导入 see-through PSD → 出现 3 步导入向导
+ - **手动路径**：选择 “Rig manually” → 即时估算骨架 → 在画布上调整关节 → Finish
+ - **DWPose 路径**：选择 “Rig with DWPose” → 下载/上传模型 → DWPose 运行 → 调整关节 → Finish
+ - **随时返回**：在调整步骤点击 Back → 项目回退到绑定前状态，向导在选择步骤重新打开
+ - **动画**：切换到动画模式 → 拖动弧线 + 按 K 制作关键帧 → 刮擦时间轴 → 角色随骨骼旋转和平滑肢体弯曲动画
 
-**Key Design Decisions:**
-- Bones ARE group nodes (no new structure), pivots ARE joint positions (no extra fields)
-- Heuristic rigging requires no external dependencies; useful when network is unavailable
-- Single ONNX session cached module-level to avoid re-download
-- World matrices recomputed in SkeletonOverlay each frame to handle animation state correctly
-- Project snapshots enable Back functionality: snapshot saved before finalizePsdImport, restored on Back button
-- Floating toolbar (not modal) for adjust step keeps canvas live and interactive during joint fine-tuning
-
----
-
-### ✅ M6 — Save/Load Project (.stretch Format) (Completed 2026-04-12)
-
-**Goal:** Enable persistent project storage so users can save work and reload it later.
-
-**Implementation:**
-- **.stretch file format**: ZIP archive containing project.json + textures/ folder with PNG files
-- **UI buttons**: Download (💾) and Upload (📁) icons in top-left canvas toolbar
-- **Serialization** (`src/io/projectFile.js`):
-  - `saveProject(project)` → fetches textures from blob URLs, exports as ZIP with relative texture paths
-  - `loadProject(file)` → reads ZIP, parses project.json, loads PNG textures, restores typed arrays (Float32Array, Set)
-- **Store integration** (`src/store/projectStore.js`):
-  - `loadProject(projectData)` action replaces entire project state and bumps version counters
-- **GPU re-upload** (`CanvasViewport.jsx`):
-  - Clear old GPU resources with `destroyAll()`
-  - Rebuild `imageDataMapRef` for alpha-based picking
-  - Re-upload textures with `uploadTexture()`
-  - Restore meshes with `uploadMesh()` or `uploadQuadFallback()`
-  - Reset editor selection and animation playback state
-
-**What Gets Saved:**
-- ✅ Canvas dimensions, node hierarchy (parts + groups)
-- ✅ Layer names, visibility, opacity, transforms (position, rotation, scale, pivot)
-- ✅ Mesh geometry (vertices, triangles, UVs, edge indices) + mesh settings
-- ✅ Bounding boxes (imageBounds, imageWidth, imageHeight)
-- ✅ Skeleton rigging (boneRole, skinWeights)
-- ✅ All textures as PNG files
-- ✅ All animations (clips, keyframes, easing, including mesh_verts deformation)
-
-**What Does NOT Get Saved:**
-- ❌ Editor state (selection, tool mode, viewport zoom/pan)
-- ❌ Animation playback state (currentTime, isPlaying)
-- ❌ Draft poses (uncommitted edits)
-- ❌ Undo/redo history
-
-**Type Conversions:**
-- `Float32Array` (mesh.uvs) → JSON Array on save, restored on load
-- `Set` (mesh.edgeIndices) → JSON Array on save, stays as Array (renderer handles both)
-- Blob URLs (textures) → PNG files in ZIP on save, new blob URLs on load
-- `ImageData` (picking) → not stored, recomputed from textures on load
-
-**Exit Criteria Met:**
-- ✅ Save project → .stretch file downloads with valid ZIP structure
-- ✅ Load project → all layers render with correct hierarchy and transforms
-- ✅ Load project → meshes + mesh_verts keyframes interpolate correctly
-- ✅ Load project → skeleton animations play back with bone rotations
-- ✅ Load project → editor functions (picking, gizmo, mesh editing) work immediately
-
-**File Format Details:**
-See `docs/save_load_implementation.md` for complete schema, error handling, and performance characteristics.
-
-**Performance:**
-- Save time: 200–500ms (texture fetch + ZIP compression)
-- Load time: 500ms–2s (ZIP read + PNG decode + GPU upload)
-- File size: 40–60% of base64-JSON approach
+**关键设计决策：**
+- 骨骼就是组节点（无新结构），轴心就是关节位置（无额外字段）
+- 启发式绑定无需外部依赖；网络不可用时很有用
+- 单个 ONNX 会话缓存于模块级，以避免重复下载
+- 每帧在 SkeletonOverlay 中重新计算世界矩阵，以正确处理动画状态
+- 项目快照启用 Back 功能：在 finalizePsdImport 前保存快照，点击 Back 按钮时恢复
+- 调整步骤使用浮动工具栏（非模态），在关节微调期间保持画布实时可交互
 
 ---
 
-### M7 — Spritesheet Export
-- **GIF**: `gif.js` worker
-- Zipped transparent frames (PNG/WEBP)
-- **WebM**: MediaRecorder API on canvas stream
-- Builds on frame renderer from M6
+### ✅ M6 —— 保存/载入项目（.stretch 格式）（完成于 2026-04-12）
+
+**目标：** 启用持久化项目存储，使用户可以保存作品并稍后重新载入。
+
+**实现：**
+- **.stretch 文件格式**：包含 project.json + 带 PNG 文件的 textures/ 文件夹的 ZIP 归档
+- **UI 按钮**：画布左上角工具栏中的 Download（💾）和 Upload（📁）图标
+- **序列化**（`src/io/projectFile.js`）：
+  - `saveProject(project)` → 从 blob URL 获取贴图，导出为带相对贴图路径的 ZIP
+  - `loadProject(file)` → 读取 ZIP、解析 project.json、载入 PNG 贴图、恢复类型化数组（Float32Array、Set）
+- **Store 集成**（`src/store/projectStore.js`）：
+  - `loadProject(projectData)` 操作替换整个项目状态并递增版本计数器
+- **GPU 重新上传**（`CanvasViewport.jsx`）：
+  - 用 `destroyAll()` 清除旧 GPU 资源
+  - 为基于 alpha 的拾取重建 `imageDataMapRef`
+  - 用 `uploadTexture()` 重新上传贴图
+  - 用 `uploadMesh()` 或 `uploadQuadFallback()` 恢复网格
+  - 重置编辑器选择和动画播放状态
+
+**会被保存的内容：**
+- ✅ 画布尺寸、节点层级（部件 + 组）
+- ✅ 图层名称、可见性、不透明度、变换（位置、旋转、缩放、轴心）
+- ✅ 网格几何（顶点、三角形、UV、边缘索引）+ 网格设置
+- ✅ 包围盒（imageBounds、imageWidth、imageHeight）
+- ✅ 骨架绑定（boneRole、skinWeights）
+- ✅ 所有贴图，作为 PNG 文件
+- ✅ 所有动画（片段、关键帧、缓动，包括 mesh_verts 变形）
+
+**不会被保存的内容：**
+- ❌ 编辑器状态（选择、工具模式、视口缩放/平移）
+- ❌ 动画播放状态（currentTime、isPlaying）
+- ❌ 草稿姿态（未提交的编辑）
+- ❌ 撤销/重做历史
+
+**类型转换：**
+- `Float32Array` (mesh.uvs) → 保存时为 JSON Array，载入时恢复
+- `Set` (mesh.edgeIndices) → 保存时为 JSON Array，保持为 Array（渲染器两者均可处理）
+- Blob URL（贴图）→ 保存时为 ZIP 中的 PNG 文件，载入时为新的 blob URL
+- `ImageData`（拾取）→ 不存储，载入时从贴图重新计算
+
+**达成的退出标准：**
+- ✅ 保存项目 → `.stretch` 文件以有效 ZIP 结构下载
+- ✅ 载入项目 → 所有图层以正确层级和变换渲染
+- ✅ 载入项目 → 网格 + mesh_verts 关键帧正确插值
+- ✅ 载入项目 → 骨架动画随骨骼旋转回放
+- ✅ 载入项目 → 编辑器功能（拾取、gizmo、网格编辑）立即可用
+
+**文件格式细节：**
+完整 schema、错误处理和性能特征请参阅 `docs/save_load_implementation.md`。
+
+**性能：**
+- 保存时间：200–500ms（贴图 fetch + ZIP 压缩）
+- 载入时间：500ms–2s（ZIP 读取 + PNG 解码 + GPU 上传）
+- 文件大小：base64-JSON 方法的 40–60%
 
 ---
 
-## 5. What's Dropped from Original Plan
+### M7 —— 精灵表导出
+- **GIF**：`gif.js` worker
+- 打包的透明帧（PNG/WEBP）
+- **WebM**：画布流上的 MediaRecorder API
+- 基于 M6 的帧渲染器构建
 
-| Feature | Status | Reason |
+---
+
+## 5. 从原计划中放弃的内容
+
+| 功能 | 状态 | 原因 |
 |---------|--------|--------|
-| Parameter system | **Dropped** | Replaced by direct keyframing (lower learning curve) |
-| Armed recording mode | **Dropped** | Part of parameter system |
-| Warp deformer 5×5 grid | **Dropped** | Direct vertex keyframes more flexible & intuitive |
-| Path deformer | **Dropped** | Scope reduction |
-| `.stretch` format + atlas packer | **Deferred** | Spritesheet export covers immediate need |
-| 2D parameter grids | **Dropped** | Out of scope |
-| Standalone player library | **Deferred** | No immediate use case |
+| 参数系统 | **放弃** | 由直接关键帧替代（学习门槛更低） |
+| 武装录制模式 | **放弃** | 参数系统的一部分 |
+| 弯曲变形器 5×5 网格 | **放弃** | 直接顶点关键帧更灵活且直观 |
+| 路径变形器 | **放弃** | 范围缩减 |
+| `.stretch` 格式 + 图集打包器 | **推迟** | 精灵表导出覆盖了眼前需求 |
+| 2D 参数网格 | **放弃** | 超出范围 |
+| 独立播放器库 | **推迟** | 无眼前用例 |
 
 ---
 
-## 6. Key Architecture Notes
+## 6. 关键架构说明
 
-### Mesh-on-Demand with Quad Fallback
-- **No auto-mesh on import:** Parts initially render with a simple 2-triangle textured quad (`uploadQuadFallback`). No GPU cost for mesh generation.
-- **Lazy mesh generation:** User clicks "Generate Mesh" in Inspector → `dispatchMeshWorker` computes mesh → `uploadMesh` replaces quad with actual mesh.
-- **Delete reverts fallback:** User clicks "Delete Mesh" → `uploadQuadFallback` restores quad, `node.mesh = null`.
-- **Quad has no edges:** Edge indices empty for fallback quad (no green wireframe visualization). Once mesh generated, edges show.
+### 带四边形回退的按需网格
+- **导入时不自动网格：** 部件初始以简单的 2 三角形带贴图四边形渲染（`uploadQuadFallback`）。网格生成无 GPU 开销。
+- **惰性网格生成：** 用户在 Inspector 中点击 “Generate Mesh” → `dispatchMeshWorker` 计算网格 → `uploadMesh` 用实际网格替换四边形。
+- **删除回退：** 用户点击 “Delete Mesh” → `uploadQuadFallback` 恢复四边形，`node.mesh = null`。
+- **四边形无边缘：** 回退四边形的边缘索引为空（无绿色线框可视化）。一旦生成网格，边缘显示。
 
-### Alpha-Based Selection (M3 Refinement)
-- **ImageData caching:** Each part's `ImageData` stored in `imageDataMapRef` during import for fast alpha sampling.
-- **Bounds computation:** `computeImageBounds(imageData)` scans for opaque pixels (alpha > 10), returns `{minX, minY, maxX, maxY}`. Cached on node as `imageBounds`.
-- **Click handling:** `sampleAlpha(imageData, lx, ly)` returns alpha at pixel. Hit-test loop checks alpha (no mesh required). Vertex proximity check still works when mesh exists.
-- **Gizmo bounding box:** Uses `node.imageBounds` for mesh-less parts, `node.mesh.vertices` for meshed parts.
+### 基于 Alpha 的选择（M3 精化）
+- **ImageData 缓存：** 导入期间每个部件的 `ImageData` 存储在 `imageDataMapRef` 中，以便快速 alpha 采样。
+- **边界计算：** `computeImageBounds(imageData)` 扫描不透明像素（alpha > 10），返回 `{minX, minY, maxX, maxY}`。缓存于节点为 `imageBounds`。
+- **点击处理：** `sampleAlpha(imageData, lx, ly)` 返回像素处的 alpha。命中测试循环检查 alpha（无需网格）。当网格存在时顶点邻近检查仍然有效。
+- **Gizmo 包围盒：** 无网格部件使用 `node.imageBounds`，有网格部件使用 `node.mesh.vertices`。
 
-### Pose Separation
-During playback, interpolated values go into `animationStore.poseOverrides` (a Map of `nodeId → {x, y, rotation, ...}`). The renderer reads overrides instead of `projectStore` values. This avoids polluting the project model with playback state.
+### 姿态分离
+播放期间，插值后的值进入 `animationStore.poseOverrides`（一个 `nodeId → {x, y, rotation, ...}` 的 Map）。渲染器读取覆盖值而非 `projectStore` 值。这避免了用播放状态污染项目模型。
 
-### Mesh Warp Keyframes
-Stored as `Float32Array` snapshots of vertex positions. Lerped per-vertex during playback. The renderer's `PartRenderer.uploadPositions()` hot-path updates GPU buffers on each frame.
+### 网格弯曲关键帧
+存储为顶点位置的 `Float32Array` 快照。播放期间逐顶点 lerp。渲染器的 `PartRenderer.uploadPositions()` 热路径每帧更新 GPU 缓冲。
 
-### Transform Composition
-World matrices computed each frame from node tree + pose overrides. No caching in M3 (simple scenes work fine). Caching can be added in M4+ if perf requires.
+### 变换复合
+每帧从节点树 + 姿态覆盖计算世界矩阵。M3 中无缓存（简单场景工作良好）。若性能需要，可在 M4+ 中添加缓存。
 
-### State Management
-- `projectStore`: Persistent project model (nodes, transforms, textures). **New fields:** `imageWidth`, `imageHeight`, `imageBounds` for mesh-less parts.
-- `editorStore`: UI state (selection, tool mode, viewport, activeLayerTab)
-- `animationStore`: Playback state (currentTime, isPlaying, poseOverrides) — separate to keep concerns isolated
-- `historyStore`: Undo/redo skeleton (not yet integrated into UI workflows)
+### 状态管理
+- `projectStore`：持久化项目模型（节点、变换、贴图）。**新字段：** 无网格部件的 `imageWidth`、`imageHeight`、`imageBounds`。
+- `editorStore`：UI 状态（选择、工具模式、视口、activeLayerTab）
+- `animationStore`：播放状态（currentTime、isPlaying、poseOverrides）—— 分离以保持关注点隔离
+- `historyStore`：撤销/重做骨架（尚未集成到 UI 工作流程中）
 
 ---
 
-## 7. Current Project Statistics
+## 7. 当前项目统计
 
-| Metric | Value |
+| 指标 | 值 |
 |--------|-------|
-| **Status** | M6 Complete (Save/Load .stretch format); M7 Spritesheet Export in design phase |
-| **Files Modified/Created** | 25+ (added: projectFile.js + save/load handlers; modified: projectStore.js, CanvasViewport.jsx) |
-| **Line Count** (core) | ~4900 (renderer + store + UI + animation + armature + io + serialization) |
-| **Bundle Size** | 1.08 MB minified, 327 KB gzipped (includes onnxruntime-web WASM; JSZip ~17 KB) |
-| **Performance** | 60 fps with rigged character + animation; Save: 200–500ms; Load: 500ms–2s |
-| **Main Dependencies** | ag-psd (~120 KB), onnxruntime-web (~25 MB WASM), jszip (^3.10.1), WebGL2 |
-| **Import/Export Speed** | Manual rig: instant; DWPose rig: ~2–3s; Project save: ~300ms; Project load: ~1s |
+| **状态** | M6 完成（保存/载入 .stretch 格式）；M7 精灵表导出处于设计阶段 |
+| **修改/新建文件数** | 25+（新增：projectFile.js + 保存/载入处理器；修改：projectStore.js、CanvasViewport.jsx） |
+| **行数**（核心） | ~4900（渲染器 + store + UI + 动画 + 骨架 + io + 序列化） |
+| **打包体积** | 1.08 MB 压缩后，327 KB gzip 后（含 onnxruntime-web WASM；JSZip ~17 KB） |
+| **性能** | 带绑定角色 + 动画时 60 fps；保存：200–500ms；载入：500ms–2s |
+| **主要依赖** | ag-psd (~120 KB)、onnxruntime-web (~25 MB WASM)、jszip (^3.10.1)、WebGL2 |
+| **导入/导出速度** | 手动绑定：即时；DWPose 绑定：~2–3s；项目保存：~300ms；项目载入：~1s |
 
 ---
 
-## 8. Known Limitations
+## 8. 已知局限
 
-- **No undo/redo yet:** All changes immediate (M5 feature)
-- **No hierarchical visibility culling:** Hidden parent's children still participate in picking (minor)
-- **No transform inheritance preview:** Gizmo shows local axes only
-- **Groups have no visual appearance:** Containers only (intentional; may revisit M5+)
-- **Remesh lag:** Large images (>2048px) can freeze UI for ~500ms (acceptable per spec)
-- **PSD edge cases:** CMYK, smart objects, layer effects, complex blend modes not fully validated
-- **Mesh dilation:** Edge vertices are placed 2px outside alpha boundary for chord-shortcut coverage. Very thin features (<4px) may slightly extend beyond visual boundary before texture alpha clips (acceptable trade-off for reliable full-image coverage)
-- **Bounds computation:** Alpha-based bounding box computed once at import (threshold = 10). Very faint semi-transparent edges may be excluded. Can be refined in future if needed.
-
----
-
-## 8b. M4 Animation Bugs Fixed
-
-### Issue: Brush Deform & Layer Selection Fail on Animated Nodes
-**Root Cause:** In `CanvasViewport.onPointerDown`, world matrices were computed from `proj.nodes` (raw stored transforms) instead of the effective transforms (keyframe interpolation + draft pose overlays). This made `iwm` (inverse world matrix) wrong for any node with animation applied, breaking:
-1. **Brush hit-testing:** Brush couldn't select/deform vertices on animated meshes
-2. **Layer selection:** Couldn't click on parts that had been moved by keyframes (had to click original position)
-3. **Vertex picking:** Single-vertex drag wouldn't register on animated nodes
-
-**Fix:** Build `effectiveNodes` at the start of `onPointerDown` by merging animation overrides (keyframe values + draft pose) into the base node transforms. Compute `worldMatrices` and `sortedParts` from `effectiveNodes` instead of raw `proj.nodes`. This ensures:
-- `iwm` converts mouse coords to the correct local space (where the visuals actually are)
-- Vertex picking uses effective vertex positions (draft mesh_verts → keyframe mesh_verts → base mesh)
-- Layer alpha-based selection hits the animated bounding box
-
-**Code Location:** `src/components/canvas/CanvasViewport.jsx`, lines ~668–693 (effectiveNodes construction) and lines ~820–845 (vertex picking).
-
-### Issue: Mesh Deform Keyframes Baked Base Mesh
-**Root Cause:** Brush drag always called `updateProject`, writing deformed vertices directly into `node.mesh.vertices` (the base mesh) regardless of animation mode. Pressing K then captured the already-modified base, not a keyframe delta.
-
-**Fix:** In animation mode + deform sub-mode, brush drag writes to `animRef.current.setDraftPose(partId, { mesh_verts })` instead of calling `updateProject`. Draft pose is overlaid on top of keyframe values during render and picking. When K is pressed, the effective verts (draft → keyframe → base) are read and inserted as a keyframe. `clearDraftPoseForNode` then reverts visual to the keyframe value. Scrubbing or stopping clears all drafts.
-
-**Code Location:** `src/components/canvas/CanvasViewport.jsx`, lines ~876–885 (brush drag reroute).
-
-### Issue: Group Hierarchy Keyframes Applied Globally
-**Root Cause:** When a parent group had a keyframe at frame 1, and a child had its own keyframe at frame 12, the child's initial position (frame 0–11) would snap to match the parent keyframe instead of inheriting smoothly. This was because rest pose wasn't being captured.
-
-**Fix:** Add `captureRestPose(nodes)` call when entering animation mode (M4 future work). Store unmodified node transforms in `animationStore.restPose`. When inserting the first keyframe for a track beyond `startFrame`, auto-insert the rest-pose value at `startFrame`. This ensures interpolation from frame 0 works correctly with group hierarchy — children inherit their base position until their own keyframes kick in.
-
-**Code Location:** `src/renderer/animationEngine.js` (rest pose logic), `src/store/animationStore.js` (captureRestPose action), `src/components/canvas/CanvasViewport.jsx` (K handler, lines ~297–303).
+- **尚无撤销/重做：** 所有更改即时生效（M5 功能）
+- **无层级可见性剔除：** 隐藏父级的子级仍参与拾取（次要）
+- **无变换继承预览：** Gizmo 仅显示局部轴
+- **组无视觉外观：** 仅作为容器（有意为之；可能在 M5+ 重新考虑）
+- **重网格滞后：** 大图像（>2048px）可能使 UI 冻结约 500ms（按规格可接受）
+- **PSD 边缘情况：** CMYK、智能对象、图层效果、复杂混合模式未完全验证
+- **网格膨胀：** 边缘顶点放置在 alpha 边界外 2px 以覆盖弦捷径。极细特征（<4px）可能在贴图 alpha 裁剪前略微延伸到视觉边界外（为可靠的全图像覆盖而接受此权衡）
+- **边界计算：** 基于 alpha 的包围盒在导入时计算一次（阈值 = 10）。非常淡的半透明边缘可能被排除。有需要时可在未来精化。
 
 ---
 
-## 9. Testing Checklist
+## 8b. 已修复的 M4 动画 Bug
 
-✅ PNG import → single layer renders without mesh (quad fallback)  
-✅ PSD import → all layers with correct names & z-order, no mesh by default  
-✅ Character format detection → auto-creates Head (with Eyes), Body (with Upper/Lowerbody), and Extras groups while preserving the original draw order  
-✅ Group creation → new group node with default transform  
-✅ Transform gizmo → drag move/rotate handles; bounding box crops to opaque pixels  
-✅ Inspector numeric inputs → live canvas updates  
-✅ DRAW ORDER tab drag → reorder by draw_order (squeeze behavior)  
-✅ Groups tab drag → reparent (only mutates parent)  
-✅ Visibility toggle → per-node show/hide (Inspector only)  
-✅ Layer selection → alpha-based picking (works without mesh)  
-✅ Generate Mesh button → creates mesh, button changes to "Remesh"  
-✅ Delete Mesh button → removes mesh, reverts to quad fallback  
-✅ Add/remove vertex → requires mesh; correct world-space picking on transformed parts  
-✅ Vertex drag → moves in local space while tracking world motion  
-✅ Gizmo bounding box → matches opaque pixels for mesh-less parts, mesh vertices for meshed parts  
+### 问题：笔刷变形与图层选择在动画节点上失败
+**根因：** 在 `CanvasViewport.onPointerDown` 中，世界矩阵是从 `proj.nodes`（原始存储的变换）而非有效变换（关键帧插值 + 草稿姿态覆盖）计算的。这使得 `iwm`（逆世界矩阵）对任何应用了动画的节点都是错误的，破坏了：
+1. **笔刷命中测试：** 笔刷无法在动画网格上选择/变形顶点
+2. **图层选择：** 无法点击已被关键帧移动的部件（必须点击原始位置）
+3. **顶点拾取：** 单顶点拖动无法在动画节点上注册
 
----
+**修复：** 在 `onPointerDown` 开始时，通过将动画覆盖（关键帧值 + 草稿姿态）合并进基础节点变换来构建 `effectiveNodes`。从 `effectiveNodes` 而非原始 `proj.nodes` 计算 `worldMatrices` 和 `sortedParts`。这确保：
+- `iwm` 将鼠标坐标转换到正确的局部空间（视觉实际所在处）
+- 顶点拾取使用有效顶点位置（draft mesh_verts → keyframe mesh_verts → base mesh）
+- 图层基于 alpha 的选择命中动画后的包围盒
 
-## 10. Next Steps
+**代码位置：** `src/components/canvas/CanvasViewport.jsx`，第 ~668–693 行（effectiveNodes 构建）及第 ~820–845 行（顶点拾取）。
 
-1. **M7 Spritesheet Export** (next sprint):
-   - Frame capture loop (offscreen WebGL canvas, gl.readPixels per frame)
-   - Spritesheet packing (shelf-pack into power-of-2 atlas)
-   - Export settings UI (animation clip dropdown, FPS override, background toggle)
-   - Zip output or spritesheet + JSON atlas (Phaser/Unity/Godot compatible)
+### 问题：网格变形关键帧烘焙了基础网格
+**根因：** 笔刷拖动总是调用 `updateProject`，无论动画模式如何，都直接将变形后的顶点写入 `node.mesh.vertices`（基础网格）。按 K 随后捕获的是已修改的基础网格，而非关键帧增量。
 
-2. **M8+ Advanced**:
-   - Physics simulation (spring chains for hair/cloth)
-   - GIF/video export
-   - Undo/redo integration
-   - Blend modes, clipping masks
+**修复：** 在动画模式 + 变形子模式下，笔刷拖动写入 `animRef.current.setDraftPose(partId, { mesh_verts })`，而非调用 `updateProject`。草稿姿态在渲染和拾取期间叠加在关键帧值之上。按下 K 时，读取有效顶点（draft → keyframe → base）并作为关键帧插入。随后 `clearDraftPoseForNode` 将视觉回退到关键帧值。刮擦或停止会清除所有草稿。
+
+**代码位置：** `src/components/canvas/CanvasViewport.jsx`，第 ~876–885 行（笔刷拖动改道）。
+
+### 问题：组层级关键帧被全局应用
+**根因：** 当父组在第 1 帧有关键帧，而子级在第 12 帧有自己的关键帧时，子级的初始位置（第 0–11 帧）会吸附以匹配父级关键帧，而非平滑继承。这是因为未捕获静止姿态。
+
+**修复：** 进入动画模式时添加 `captureRestPose(nodes)` 调用（M4 未来工作）。将未修改的节点变换存储在 `animationStore.restPose` 中。当为某个轨道插入超出 `startFrame` 的第一个关键帧时，自动在 `startFrame` 插入静止姿态值。这确保从第 0 帧起插值与组层级正确配合 —— 子级继承其基础位置，直到自己的关键帧生效。
+
+**代码位置：** `src/renderer/animationEngine.js`（静止姿态逻辑）、`src/store/animationStore.js`（captureRestPose 操作）、`src/components/canvas/CanvasViewport.jsx`（K 处理器，第 ~297–303 行）。
 
 ---
 
-**Project Lead:** Nguyen Phan  
-**Quality:** M6 complete (save/load working end-to-end); architecture solid for M7+ progression
+## 9. 测试清单
+
+✅ PNG 导入 → 单图层无网格渲染（四边形回退）  
+✅ PSD 导入 → 所有图层带正确名称与 z 顺序，默认无网格  
+✅ 角色格式检测 → 自动创建 Head（含 Eyes）、Body（含 Upper/Lowerbody）和 Extras 组，同时保留原始绘制顺序  
+✅ 组创建 → 带默认变换的新组节点  
+✅ 变换 gizmo → 拖动移动/旋转手柄；包围盒裁剪到不透明像素  
+✅ Inspector 数字输入 → 画布实时更新  
+✅ DRAW ORDER 标签页拖动 → 按 draw_order 重排（挤压行为）  
+✅ Groups 标签页拖动 → 重新设为子级（仅改变 parent）  
+✅ 可见性切换 → 按节点显示/隐藏（仅 Inspector）  
+✅ 图层选择 → 基于 alpha 的拾取（无需网格即可工作）  
+✅ Generate Mesh 按钮 → 创建网格，按钮变为 “Remesh”  
+✅ Delete Mesh 按钮 → 移除网格，回退到四边形回退  
+✅ 添加/删除顶点 → 需要网格；在已变换部件上进行正确的世界空间拾取  
+✅ 顶点拖动 → 在局部空间中移动，同时跟踪世界运动  
+✅ Gizmo 包围盒 → 无网格部件匹配不透明像素，有网格部件匹配网格顶点  
+
+---
+
+## 10. 后续步骤
+
+1. **M7 精灵表导出**（下个冲刺）：
+   - 帧捕获循环（离屏 WebGL 画布，每帧 gl.readPixels）
+   - 精灵表打包（shelf-pack 到 2 的幂图集）
+   - 导出设置 UI（动画片段下拉、FPS 覆盖、背景切换）
+   - Zip 输出或精灵表 + JSON 图集（兼容 Phaser/Unity/Godot）
+
+2. **M8+ 高级**：
+   - 物理模拟（头发/衣物的弹性链）
+   - GIF/视频导出
+   - 撤销/重做集成
+   - 混合模式、裁剪遮罩
+
+---
+
+**项目负责人：** Nguyen Phan  
+**质量：** M6 完成（保存/载入端到端工作）；架构稳固，可推进 M7+

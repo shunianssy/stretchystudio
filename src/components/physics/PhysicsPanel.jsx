@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ChevronDown, ChevronRight, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
-const CATEGORY_LABELS = {
-  hair:     'Hair',
-  clothing: 'Clothing',
-  bust:     'Bust',
-  arms:     'Arms',
+/** 类别 -> i18n 键 的映射表（模块级常量，渲染时再调用 t()） */
+const CATEGORY_LABEL_KEYS = {
+  hair:     'io.physics.categoryHair',
+  clothing: 'io.physics.categoryClothing',
+  bust:     'io.physics.categoryBust',
+  arms:     'io.physics.categoryArms',
 };
 
 /**
@@ -21,6 +23,7 @@ const CATEGORY_LABELS = {
  * customises rules.
  */
 export function PhysicsPanel() {
+  const { t } = useTranslation();
   const physicsRules    = useProjectStore(s => s.project.physicsRules);
   const setPhysicsRules = useProjectStore(s => s.setPhysicsRules);
   const createPhysicsRule = useProjectStore(s => s.createPhysicsRule);
@@ -48,9 +51,9 @@ export function PhysicsPanel() {
           size="sm"
           className="h-7 text-xs gap-1.5"
           onClick={handleLoadDefaults}
-          title="Populate from built-in PHYSICS_RULES defaults"
+          title={t('io.physics.loadDefaultsHint')}
         >
-          <RotateCcw className="h-3 w-3" /> Load Defaults
+          <RotateCcw className="h-3 w-3" /> {t('io.physics.loadDefaults')}
         </Button>
 
         {!isEmpty && (
@@ -59,17 +62,16 @@ export function PhysicsPanel() {
             size="sm"
             className="h-7 text-xs text-destructive hover:text-destructive gap-1.5"
             onClick={handleReset}
-            title="Clear all rules (export will use built-in defaults)"
+            title={t('io.physics.clearAllHint')}
           >
-            Clear all
+            {t('io.physics.clearAll')}
           </Button>
         )}
       </div>
 
       {isEmpty ? (
         <p className="text-xs text-muted-foreground italic">
-          No custom rules — export uses built-in defaults ({PHYSICS_RULES.length} rules).
-          Press "Load Defaults" to customise.
+          {t('io.physics.empty', { count: PHYSICS_RULES.length })}
         </p>
       ) : (
         <div className="space-y-1 border rounded overflow-hidden">
@@ -101,13 +103,13 @@ export function PhysicsPanel() {
                   </span>
 
                   <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded shrink-0">
-                    {CATEGORY_LABELS[rule.category] ?? rule.category}
+                    {CATEGORY_LABEL_KEYS[rule.category] ? t(CATEGORY_LABEL_KEYS[rule.category]) : rule.category}
                   </span>
 
                   <button
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive shrink-0"
+                    className="text-muted-foreground hover:text-destructive shrink-0"
                     onClick={() => deletePhysicsRule(rule.id)}
-                    title="Delete rule"
+                    title={t('io.physics.deleteRule')}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -119,7 +121,7 @@ export function PhysicsPanel() {
                     {/* Name & category */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-0.5">
-                        <Label className="text-[10px] text-muted-foreground">Name</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t('io.physics.name')}</Label>
                         <Input
                           className="h-6 text-xs"
                           value={rule.name}
@@ -127,16 +129,16 @@ export function PhysicsPanel() {
                         />
                       </div>
                       <div className="space-y-0.5">
-                        <Label className="text-[10px] text-muted-foreground">Category</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t('io.physics.category')}</Label>
                         <select
                           className="w-full h-6 text-xs px-1 rounded border bg-background"
                           value={rule.category ?? ''}
                           onChange={e => updatePhysicsRule(rule.id, { category: e.target.value })}
                         >
-                          <option value="hair">Hair</option>
-                          <option value="clothing">Clothing</option>
-                          <option value="bust">Bust</option>
-                          <option value="arms">Arms</option>
+                          <option value="hair">{t('io.physics.categoryHair')}</option>
+                          <option value="clothing">{t('io.physics.categoryClothing')}</option>
+                          <option value="bust">{t('io.physics.categoryBust')}</option>
+                          <option value="arms">{t('io.physics.categoryArms')}</option>
                         </select>
                       </div>
                     </div>
@@ -144,11 +146,11 @@ export function PhysicsPanel() {
                     {/* Require tag */}
                     <div className="space-y-0.5">
                       <Label className="text-[10px] text-muted-foreground">
-                        Require tag (skip if no mesh has this tag; leave blank to always emit)
+                        {t('io.physics.requireTag')}
                       </Label>
                       <Input
                         className="h-6 text-xs font-mono"
-                        placeholder="e.g. front hair"
+                        placeholder={t('io.physics.requireTagPlaceholder')}
                         value={rule.requireTag ?? ''}
                         onChange={e => updatePhysicsRule(rule.id, { requireTag: e.target.value || null })}
                       />
@@ -157,14 +159,14 @@ export function PhysicsPanel() {
                     {/* Pendulum vertices */}
                     <div className="space-y-1">
                       <Label className="text-[10px] text-muted-foreground">
-                        Pendulum vertices (root → tip)
+                        {t('io.physics.pendulumVertices')}
                       </Label>
                       {(rule.vertices ?? []).map((v, vi) => (
                         <div key={vi} className="grid grid-cols-5 gap-1 items-center">
                           <span className="text-[10px] text-muted-foreground col-span-1">#{vi}</span>
                           <div className="col-span-4 grid grid-cols-4 gap-1">
                             <div>
-                              <Label className="text-[9px] text-muted-foreground">Y (len)</Label>
+                              <Label className="text-[9px] text-muted-foreground">{t('io.physics.vertexY')}</Label>
                               <Input
                                 type="number"
                                 className="h-5 text-xs px-1"
@@ -179,7 +181,7 @@ export function PhysicsPanel() {
                               />
                             </div>
                             <div>
-                              <Label className="text-[9px] text-muted-foreground">Mobility</Label>
+                              <Label className="text-[9px] text-muted-foreground">{t('io.physics.mobility')}</Label>
                               <Input
                                 type="number"
                                 className="h-5 text-xs px-1"
@@ -195,7 +197,7 @@ export function PhysicsPanel() {
                               />
                             </div>
                             <div>
-                              <Label className="text-[9px] text-muted-foreground">Delay</Label>
+                              <Label className="text-[9px] text-muted-foreground">{t('io.physics.delay')}</Label>
                               <Input
                                 type="number"
                                 className="h-5 text-xs px-1"
@@ -211,7 +213,7 @@ export function PhysicsPanel() {
                               />
                             </div>
                             <div>
-                              <Label className="text-[9px] text-muted-foreground">Accel</Label>
+                              <Label className="text-[9px] text-muted-foreground">{t('io.physics.accel')}</Label>
                               <Input
                                 type="number"
                                 className="h-5 text-xs px-1"
@@ -235,7 +237,7 @@ export function PhysicsPanel() {
                     {rule.outputParamId !== undefined && (
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-0.5">
-                          <Label className="text-[10px] text-muted-foreground">Output param ID</Label>
+                          <Label className="text-[10px] text-muted-foreground">{t('io.physics.outputParamId')}</Label>
                           <Input
                             className="h-6 text-xs font-mono"
                             value={rule.outputParamId ?? ''}
@@ -243,7 +245,7 @@ export function PhysicsPanel() {
                           />
                         </div>
                         <div className="space-y-0.5">
-                          <Label className="text-[10px] text-muted-foreground">Output scale</Label>
+                          <Label className="text-[10px] text-muted-foreground">{t('io.physics.outputScale')}</Label>
                           <Input
                             type="number"
                             className="h-6 text-xs"

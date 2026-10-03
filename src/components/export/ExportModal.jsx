@@ -32,8 +32,10 @@ import {
 } from '@/io/exportAnimation';
 import { exportLive2D, exportLive2DProject } from '@/io/live2d';
 import { PhysicsPanel } from '@/components/physics/PhysicsPanel';
+import { useTranslation } from '@/i18n';
 
 export function ExportModal({ open, onClose, captureRef, projectName, projectId }) {
+  const { t } = useTranslation();
   // Form state
   const [type, setType] = useState('sequence');
   const [format, setFormat] = useState('png');
@@ -105,7 +107,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
   const handleLive2DExport = useCallback(async () => {
     setIsExporting(true);
     setExportError(null);
-    setProgress({ current: 0, total: 1, label: 'Loading textures...' });
+    setProgress({ current: 0, total: 1, label: t('io.export.progressLoadingTextures') });
 
     try {
       // Load texture images from blob URLs
@@ -172,11 +174,11 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
       onClose();
     } catch (err) {
       console.error('[Live2D Export] Failed:', err);
-      setExportError(err.message || 'Export failed');
+      setExportError(err.message || t('io.export.exportFailed'));
       setProgress(null);
       setIsExporting(false);
     }
-  }, [project, modelName, atlasSize, type, generateRig, generatePhysics, physicsHair, physicsClothing, physicsBust, physicsArms, onClose]);
+  }, [project, modelName, atlasSize, type, generateRig, generatePhysics, physicsHair, physicsClothing, physicsBust, physicsArms, onClose, t]);
 
   const handleExport = useCallback(async () => {
     if (type === 'live2d' || type === 'live2d_project') {
@@ -189,7 +191,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
     }
 
     setIsExporting(true);
-    setProgress({ current: 0, total: 1, label: 'Preparing...' });
+    setProgress({ current: 0, total: 1, label: t('io.export.progressPreparing') });
 
     try {
       // Resolve which animations to export
@@ -219,7 +221,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
       if (animsToExport.length === 0) {
         setProgress(null);
         setIsExporting(false);
-        alert('No target selected to export');
+        alert(t('io.export.noTargetSelected'));
         return;
       }
 
@@ -259,7 +261,10 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
         setProgress({
           current: i + 1,
           total,
-          label: `${spec.animName} — frame ${spec.frameIndex + 1}`,
+          label: t('io.export.frameProgress', {
+            name: spec.animName,
+            frame: spec.frameIndex + 1,
+          }),
         });
 
         const dataUrl = captureRef.current({
@@ -290,7 +295,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
       setProgress({
         current: total,
         total,
-        label: 'Writing output...',
+        label: t('io.export.progressWritingOutput'),
       });
 
       await exportFrames({
@@ -305,7 +310,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
       setIsExporting(false);
     } catch (err) {
       console.error('[Export] Failed:', err);
-      setExportError(err.message || 'Export failed');
+      setExportError(err.message || t('io.export.exportFailed'));
       setProgress(null);
       setIsExporting(false);
     }
@@ -325,6 +330,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
     exportDest,
     onClose,
     handleLive2DExport,
+    t,
   ]);
 
   const isLive2D = type === 'live2d' || type === 'live2d_project';
@@ -366,30 +372,30 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
     }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Export</DialogTitle>
+          <DialogTitle>{t('io.export.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">
           {/* Section 1: Type + Format */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Type</Label>
+              <Label className="text-xs text-muted-foreground">{t('io.export.labelType')}</Label>
               <Select value={type} onValueChange={v => { setType(v); setExportError(null); }} disabled={isExporting}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sequence">Sequence</SelectItem>
-                  <SelectItem value="single_frame">Single Frame</SelectItem>
-                  <SelectItem value="live2d_project">Live2D Project</SelectItem>
-                  <SelectItem value="live2d">Live2D Runtime ⚠️</SelectItem>
-                  <SelectItem value="spine">Spine (4.0+)</SelectItem>
+                  <SelectItem value="sequence">{t('io.export.typeSequence')}</SelectItem>
+                  <SelectItem value="single_frame">{t('io.export.typeSingleFrame')}</SelectItem>
+                  <SelectItem value="live2d_project">{t('io.export.typeLive2DProject')}</SelectItem>
+                  <SelectItem value="live2d">{t('io.export.typeLive2DRuntime')}</SelectItem>
+                  <SelectItem value="spine">{t('io.export.typeSpine')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {!isLive2D && !isSpine && (
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Format</Label>
+                <Label className="text-xs text-muted-foreground">{t('io.export.labelFormat')}</Label>
                 <Select value={format} onValueChange={setFormat} disabled={isExporting}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -411,12 +417,12 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
               <div className="space-y-3">
                 {type === 'live2d' && (
                   <div className="text-[11px] text-amber-600 dark:text-amber-400 px-3 py-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/40">
-                    <span className="font-bold block mb-0.5">⚠️ Testing Only</span>
-                    The Runtime option is for debugging. It cannot be loaded into Cubism Editor and does not support animations. Use <strong>Live2D Project</strong> for production.
+                    <span className="font-bold block mb-0.5">{t('io.export.testingOnly')}</span>
+                    {t('io.export.runtimeWarningPrefix')} <strong>Live2D Project</strong> {t('io.export.runtimeWarningSuffix')}
                   </div>
                 )}
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Model Name</Label>
+                  <Label className="text-xs text-muted-foreground">{t('io.export.labelModelName')}</Label>
                   <Input
                     className="h-8 text-xs"
                     value={modelName}
@@ -425,12 +431,12 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                       setModelNameTouched(true);
                     }}
                     disabled={isExporting}
-                    placeholder="model"
+                    placeholder={t('io.export.placeholderModelName')}
                   />
                 </div>
                 {type !== 'live2d_project' && (
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Atlas Size</Label>
+                    <Label className="text-xs text-muted-foreground">{t('io.export.labelAtlasSize')}</Label>
                     <Select value={String(atlasSize)} onValueChange={v => setAtlasSize(Number(v))} disabled={isExporting}>
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -453,9 +459,9 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                       className="mt-0.5"
                     />
                     <Label htmlFor="generateRig" className="text-xs cursor-pointer leading-relaxed">
-                      Generate standard Live2D rig
+                      {t('io.export.generateRigLabel')}
                       <span className="block text-muted-foreground font-normal">
-                        Adds warp deformers, standard parameters (ParamAngleX/Y/Z, ParamBody, etc.), and face-part deformer hierarchy
+                        {t('io.export.generateRigDesc')}
                       </span>
                     </Label>
                   </div>
@@ -471,10 +477,9 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                         className="mt-0.5"
                       />
                       <Label htmlFor="generatePhysics" className="text-xs cursor-pointer leading-relaxed">
-                        Generate physics (hair + clothing swing, bust wobble)
+                        {t('io.export.generatePhysicsLabel')}
                         <span className="block text-muted-foreground font-normal">
-                          Adds pendulum simulations. Rules auto-skip when the matching tag isn&apos;t present,
-                          so bare-armed / skirtless characters drop unused rules on their own.
+                          {t('io.export.generatePhysicsDesc')}
                         </span>
                       </Label>
                     </div>
@@ -488,7 +493,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                             disabled={isExporting}
                           />
                           <Label htmlFor="physicsHair" className="text-xs cursor-pointer">
-                            Hair (front / back). <span className="text-muted-foreground">Turn off for buzz-cut / short-hair characters.</span>
+                            {t('io.export.physicsHairLabel')} <span className="text-muted-foreground">{t('io.export.physicsHairHint')}</span>
                           </Label>
                         </div>
                         <div className="flex items-center gap-2">
@@ -499,7 +504,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                             disabled={isExporting}
                           />
                           <Label htmlFor="physicsClothing" className="text-xs cursor-pointer">
-                            Clothing (shirt hem + sleeves, skirt, pants).
+                            {t('io.export.physicsClothingLabel')}
                           </Label>
                         </div>
                         <div className="flex items-center gap-2">
@@ -510,7 +515,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                             disabled={isExporting}
                           />
                           <Label htmlFor="physicsBust" className="text-xs cursor-pointer">
-                            Bust wobble. <span className="text-muted-foreground">Turn off for male / flat-chest characters.</span>
+                            {t('io.export.physicsBustLabel')} <span className="text-muted-foreground">{t('io.export.physicsBustHint')}</span>
                           </Label>
                         </div>
                         <div className="flex items-center gap-2">
@@ -521,7 +526,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                             disabled={isExporting}
                           />
                           <Label htmlFor="physicsArms" className="text-xs cursor-pointer">
-                            Arm sway (forearm lags body roll/tilt).
+                            {t('io.export.physicsArmsLabel')}
                           </Label>
                         </div>
                       </div>
@@ -536,8 +541,8 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                         >
                           {showPhysicsRules ? '▾' : '▸'}
                           {project.physicsRules?.length > 0
-                            ? <span>Custom physics rules <span className="text-primary">({project.physicsRules.length} rules)</span></span>
-                            : 'Configure physics rules…'}
+                            ? <span>{t('io.export.customRulesLabel')} <span className="text-primary">{t('io.export.customRulesCount', { count: project.physicsRules.length })}</span></span>
+                            : t('io.export.configureRules')}
                         </button>
                         {showPhysicsRules && (
                           <div className="mt-2 ml-1 border rounded p-2.5 bg-muted/10">
@@ -550,9 +555,9 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                 )}
                 <div className="text-xs text-muted-foreground px-2 py-1.5 rounded bg-muted/50">
                   {type === 'live2d_project' ? (
-                    <><span className="font-medium">Live2D Cubism .cmo3</span> — project file editable in Cubism Editor 5.0. Each mesh gets its own texture.</>
+                    <><span className="font-medium">Live2D Cubism .cmo3</span> — {t('io.export.cmo3Description')}</>
                   ) : (
-                    <><span className="font-medium">Live2D Cubism V4.00</span> — runtime format (SDK 4.0). Experimental: no animation support and not editable in Cubism Editor.</>
+                    <><span className="font-medium">Live2D Cubism V4.00</span> — {t('io.export.runtimeFormatDescription')}</>
                   )}
                 </div>
               </div>
@@ -565,21 +570,21 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
           {!isLive2D && (<>
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Animation</Label>
+                <Label className="text-xs text-muted-foreground">{t('io.export.labelAnimation')}</Label>
                 <Select value={animTarget} onValueChange={setAnimTarget} disabled={isExporting}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="staging">Staging</SelectItem>
-                    {project.animations.length > 0 && <SelectItem value="current">Current</SelectItem>}
+                    <SelectItem value="staging">{t('io.export.animStaging')}</SelectItem>
+                    {project.animations.length > 0 && <SelectItem value="current">{t('io.export.animCurrent')}</SelectItem>}
                     {project.animations.map(a => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.name}
                       </SelectItem>
                     ))}
                     {project.animations.length > 1 && (
-                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="all">{t('io.export.animAll')}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -587,7 +592,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
 
               {showFpsInput && (
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">FPS</Label>
+                  <Label className="text-xs text-muted-foreground">{t('io.export.labelFps')}</Label>
                   <Input
                     type="number"
                     className="h-8 text-xs"
@@ -604,7 +609,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
 
               {showFrameInput && (
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Frame</Label>
+                  <Label className="text-xs text-muted-foreground">{t('io.export.labelFrame')}</Label>
                   <div className="flex items-center gap-3">
                     <Slider
                       value={[frameIndex]}
@@ -637,11 +642,11 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
 
             {isSpine && (
               <div className="text-[11px] leading-relaxed text-muted-foreground bg-accent/20 p-3 rounded-md border border-accent/20 space-y-1.5">
-                <p className="font-semibold text-foreground/90">How to import to Spine:</p>
+                <p className="font-semibold text-foreground/90">{t('io.export.spineHowTo')}</p>
                 <ol className="list-decimal list-inside space-y-1 ml-0.5">
-                  <li>Unzip the exported <strong>.zip</strong> file</li>
-                  <li>In Spine, go to <strong>Spine menu &gt; Import Data...</strong></li>
-                  <li>Select the <strong>.json</strong> file from the unzipped folder</li>
+                  <li>{t('io.export.spineStep1Prefix')} <strong>.zip</strong> {t('io.export.spineStep1Suffix')}</li>
+                  <li>{t('io.export.spineStep2Prefix')} <strong>Spine menu &gt; Import Data...</strong></li>
+                  <li>{t('io.export.spineStep3Prefix')} <strong>.json</strong> {t('io.export.spineStep3Suffix')}</li>
                 </ol>
               </div>
             )}
@@ -651,7 +656,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">
-                    Image Contains
+                    {t('io.export.labelImageContains')}
                   </Label>
                   <Select
                     value={imageContains}
@@ -662,16 +667,16 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="canvas_area">Canvas area</SelectItem>
-                      <SelectItem value="min_image_area">Min image area</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
+                      <SelectItem value="canvas_area">{t('io.export.imageCanvasArea')}</SelectItem>
+                      <SelectItem value="min_image_area">{t('io.export.imageMinArea')}</SelectItem>
+                      <SelectItem value="custom">{t('io.export.imageCustom')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">
-                    Output Scale (%)
+                    {t('io.export.labelOutputScale')}
                   </Label>
                   <Input
                     type="number"
@@ -688,7 +693,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">
-                    Background
+                    {t('io.export.labelBackground')}
                   </Label>
                   <div className="flex items-center gap-2">
                     <Select
@@ -700,8 +705,8 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="transparent">Transparent</SelectItem>
-                        <SelectItem value="custom">Custom color</SelectItem>
+                        <SelectItem value="transparent">{t('io.export.bgTransparent')}</SelectItem>
+                        <SelectItem value="custom">{t('io.export.bgCustomColor')}</SelectItem>
                       </SelectContent>
                     </Select>
                     {bgMode === 'custom' && (
@@ -718,7 +723,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
 
                 {showJpgWarning && (
                   <div className="text-xs text-yellow-600 dark:text-yellow-500 px-2 py-1 rounded bg-yellow-50 dark:bg-yellow-900/20">
-                    JPG doesn&apos;t support transparency — pixels will be black.
+                    {t('io.export.jpgWarning')}
                   </div>
                 )}
               </div>
@@ -729,7 +734,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
             {/* Section 4: Export destination */}
             {!isSpine && type !== 'single_frame' && (
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Export to</Label>
+                <Label className="text-xs text-muted-foreground">{t('io.export.labelExportTo')}</Label>
                 <RadioGroup
                   value={exportDest}
                   onValueChange={setExportDest}
@@ -742,7 +747,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                       htmlFor="dest-zip"
                       className="text-xs cursor-pointer"
                     >
-                      ZIP file
+                      {t('io.export.destZip')}
                     </Label>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -759,10 +764,10 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                         'opacity-40 cursor-not-allowed'
                       )}
                     >
-                      Folder
+                      {t('io.export.destFolder')}
                       {!hasFolderSupport && (
                         <span className="ml-1 text-muted-foreground">
-                          (not supported)
+                          {t('io.export.destNotSupported')}
                         </span>
                       )}
                     </Label>
@@ -775,7 +780,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
           {/* Error display */}
           {exportError && (
             <div className="text-xs text-red-600 dark:text-red-400 px-2 py-1.5 rounded bg-red-50 dark:bg-red-900/20">
-              <span className="font-medium">Export failed:</span> {exportError}
+              <span className="font-medium">{t('io.export.exportFailedLabel')}</span> {exportError}
             </div>
           )}
 
@@ -802,14 +807,14 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
             onClick={onClose}
             disabled={isExporting}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             size="sm"
             onClick={handleExport}
             disabled={isExporting}
           >
-            {isExporting ? 'Exporting...' : 'Export'}
+            {isExporting ? t('io.export.exporting') : t('io.export.action')}
           </Button>
         </DialogFooter>
       </DialogContent>

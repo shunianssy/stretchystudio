@@ -1,27 +1,27 @@
 # JUMPSTART
 
-This document provides a quick overview of the project's tech stack and how to customize the UI programmatically.
+本文档简要介绍项目的技术栈，以及如何通过编程方式自定义 UI。
 
-## Tech Stack
+## 技术栈
 
-- **Framework:** [React.js](https://react.dev/)
-- **Build Tool:** [Vite](https://vitejs.dev/)
-- **UI Components:** [Shadcn UI](https://ui.shadcn.com/)
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-- **Icons:** [Lucide React](https://lucide.dev/guide/packages/lucide-react)
-- **Fonts:** [Fontsource](https://fontsource.org/)
+- **框架：** [React.js](https://react.dev/)
+- **构建工具：** [Vite](https://vitejs.dev/)
+- **UI 组件：** [Shadcn UI](https://ui.shadcn.com/)
+- **样式：** [Tailwind CSS](https://tailwindcss.com/)
+- **图标：** [Lucide React](https://lucide.dev/guide/packages/lucide-react)
+- **字体：** [Fontsource](https://fontsource.org/)
 
-## Customization Examples
+## 自定义示例
 
-The theme and font management is handled by a custom `ThemeProvider` React context located in `src/contexts/ThemeProvider.jsx`.
+主题和字体管理由位于 `src/contexts/ThemeProvider.jsx` 的自定义 `ThemeProvider` React context 负责处理。
 
-To interact with the theme, you can use the `useTheme` hook, which provides access to the state and functions for updating it.
+要与主题交互，你可以使用 `useTheme` hook，它提供了对状态以及更新状态所需函数的访问。
 
-### Setting the Theme
+### 设置主题
 
-You can change the theme mode (e.g., 'light', 'dark', 'system') and also set the specific color presets for both light and dark modes.
+你可以更改主题模式（例如 'light'、'dark'、'system'），也可以分别为亮色和暗色模式设置特定的颜色预设。
 
-**Example:**
+**示例：**
 ```jsx
 import { useTheme } from '@/contexts/ThemeProvider';
 import { lightThemePresets, darkThemePresets } from '@/lib/themePresets';
@@ -49,11 +49,11 @@ function ThemeControls() {
 }
 ```
 
-### Setting the Font Family
+### 设置字体系列
 
-You can dynamically change the application's font family by passing the font's `id`.
+你可以通过传入字体的 `id` 来动态更改应用程序的字体系列。
 
-**Example:**
+**示例：**
 ```jsx
 import { useTheme } from '@/contexts/ThemeProvider';
 
@@ -75,11 +75,11 @@ function FontSelector() {
 }
 ```
 
-### Setting the Font Size
+### 设置字体大小
 
-You can adjust the base font size of the application.
+你可以调整应用程序的基础字体大小。
 
-**Example:**
+**示例：**
 ```jsx
 import { useTheme } from '@/contexts/ThemeProvider';
 
@@ -98,3 +98,4 @@ function FontSizeControls() {
     </div>
   );
 }
+```

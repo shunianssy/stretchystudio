@@ -1,24 +1,24 @@
-# Shape Keys (Blend Shapes) Implementation
+# 形态键（混合变形）实现
 
-## Overview
+## 概述
 
-Shape Keys (also called Blend Shapes) is a Blender-inspired feature that allows users to create multiple deformed versions of a mesh and blend between them via an influence slider. Each shape key stores **vertex position deltas** from the rest position, enabling complex character animation without bone-based rigging.
+形态键（Shape Keys，也称混合变形 Blend Shapes）是一项受 Blender 启发的功能，允许用户创建网格的多个变形版本，并通过影响强度滑块在它们之间混合。每个形态键存储相对于静止位置的**顶点位置增量**，从而无需基于骨骼的绑定即可实现复杂的角色动画。
 
-### Key Features
+### 核心功能
 
-- **Per-node blend shapes**: Each part with a mesh can have multiple shape keys
-- **Keyframeable influences**: Blend shape influences (0–1) can be animated on the timeline
-- **Blender-style edit mode**: Click the pencil ✎ to enter shape key edit mode and deform deltas with the brush
-- **Accumulative**: Multiple shapes blend together (`finalPos = rest + Σ(delta × influence)`)
-- **Live preview**: Active shape key displays at 100% influence during editing for visibility
+- **按节点混合变形**：每个带网格的部件可拥有多个形态键
+- **可关键帧化的影响强度**：混合变形影响强度（0–1）可在时间轴上制作动画
+- **Blender 风格编辑模式**：点击铅笔 ✎ 进入形态键编辑模式，并用笔刷变形增量
+- **可累积**：多个形态一起混合（`finalPos = rest + Σ(delta × influence)`）
+- **实时预览**：编辑期间激活的形态键以 100% 影响强度显示，以保证可见性
 
 ---
 
-## Architecture
+## 架构
 
-### Data Model
+### 数据模型
 
-**Part node additions:**
+**部件节点新增内容：**
 ```javascript
 {
   id: string,
@@ -41,68 +41,68 @@ Shape Keys (also called Blend Shapes) is a Blender-inspired feature that allows 
 }
 ```
 
-### Rendering Pipeline
+### 渲染管线
 
-**Blend Formula** (rAF tick, line ~240–275):
+**混合公式**（rAF tick，第 ~240–275 行）：
 ```javascript
 finalX[i] = restX[i] + Σ(blendShapes[j].deltas[i].dx × influence[j])
 finalY[i] = restY[i] + Σ(blendShapes[j].deltas[i].dy × influence[j])
 ```
 
-The formula:
-1. Starts from **rest positions** (`restX/restY`), not current `x/y`
-2. Applies ALL shape deltas scaled by their influences
-3. Injects the blended vertices into `poseOverrides` as `mesh_verts`
-4. GPU `uploadPositions` handles the final vertex update
+该公式：
+1. 从**静止位置**（`restX/restY`）开始，而非当前的 `x/y`
+2. 应用所有形态增量，并按各自的影响强度缩放
+3. 将混合后的顶点作为 `mesh_verts` 注入 `poseOverrides`
+4. GPU 的 `uploadPositions` 处理最终的顶点更新
 
-**Key insight**: The blend formula runs **every frame** during render, not just on drag. This means influences from keyframes are applied live during playback.
+**关键洞见**：混合公式在渲染期间**每帧**运行，而不仅在拖动时运行。这意味着来自关键帧的影响强度会在播放期间实时应用。
 
-### Animation Integration
+### 动画集成
 
-**Track property naming**: `blendShape:{shapeId}`
-- Example: `blendShape:abc123def`
-- Scalar value: 0.0–1.0 (the influence)
-- Keyframing: works with existing easing system (linear, ease-in-out, etc.)
+**轨道属性命名**：`blendShape:{shapeId}`
+- 示例：`blendShape:abc123def`
+- 标量值：0.0–1.0（影响强度）
+- 关键帧化：可与现有缓动系统配合使用（linear、ease-in-out 等）
 
-**Flow**:
-1. User moves influence slider in animation mode
-2. `setDraftPose(nodeId, { 'blendShape:{id}': value })` stores uncommitted change
-3. Press K → creates `blendShape:{id}` keyframe at current time
-4. During playback, `computePoseOverrides` interpolates keyframe influences
-5. Render loop reads influences and applies blend formula
+**流程**：
+1. 用户在动画模式中移动影响强度滑块
+2. `setDraftPose(nodeId, { 'blendShape:{id}': value })` 存储未提交的更改
+3. 按 K → 在当前时间创建 `blendShape:{id}` 关键帧
+4. 播放期间，`computePoseOverrides` 对关键帧影响强度进行插值
+5. 渲染循环读取影响强度并应用混合公式
 
-### Edit Mode
+### 编辑模式
 
-**Entering**: Click the pencil ✎ button in the Shape Keys panel
-- Sets `blendShapeEditMode = true`, `activeBlendShapeId = shape.id`
-- Forces active shape to display at 100% influence (regardless of slider)
-- Brush writes to `shape.deltas` instead of base mesh
+**进入**：点击 Shape Keys 面板中的铅笔 ✎ 按钮
+- 设置 `blendShapeEditMode = true`、`activeBlendShapeId = shape.id`
+- 强制激活形态以 100% 影响强度显示（无论滑块如何）
+- 笔刷写入 `shape.deltas` 而非基础网格
 
-**During edit**:
-- Drag start captures blended positions (existing deltas + current drag)
-- GPU shows real-time preview: basis + accumulated deltas + current drag
-- All affected vertices updated in `shape.deltas` on mouse release
+**编辑期间**：
+- 拖动开始时捕获混合后的位置（已有增量 + 当前拖动）
+- GPU 显示实时预览：基础 + 累积增量 + 当前拖动
+- 松开鼠标时，所有受影响的顶点在 `shape.deltas` 中更新
 
-**Exiting**: Click "Done" button in edit mode header
+**退出**：点击编辑模式头部中的 “Done” 按钮
 
 ---
 
-## Problems & Solutions
+## 问题与解决方案
 
-### Problem 1: Mesh Visually Reverts Between Drags in Edit Mode
+### 问题 1：编辑模式下网格在多次拖动之间视觉上回退
 
-**Symptom**: When editing a blend shape with the deform brush, the second and subsequent drags would visually reset the mesh to its original position, then deform from there. However, exiting edit mode showed all changes correctly saved.
+**症状**：使用变形笔刷编辑混合变形时，第二次及后续拖动会视觉上将网格重置到原始位置，然后从那里变形。然而，退出编辑模式后显示所有更改都已正确保存。
 
-**Root Cause**: 
-- `onPointerDown` captured a vertex position snapshot (`verticesSnap`) from `node.mesh.vertices` (the base rest positions)
-- Each new drag started from rest, not from the previously-edited state
-- The blend shape deltas WERE being accumulated correctly in storage, but the visual GPU preview only showed the current drag from rest
+**根因**： 
+- `onPointerDown` 从 `node.mesh.vertices`（基础静止位置）捕获了一份顶点位置快照（`verticesSnap`）
+- 每次新拖动都从静止状态开始，而非从先前编辑过的状态开始
+- 混合变形增量在存储中*确实*被正确累积，但 GPU 视觉预览只显示从静止状态起的当前拖动
 
-**Solution** (lines 1062–1095):
-1. When in `blendShapeEditMode`, compute `effectiveVerts` by applying existing blend shape deltas (at 100% influence for active shape)
-2. This "starting state" becomes the `verticesSnap` for each drag
-3. GPU upload then shows: blended-base + new-drag-delta (visually correct)
-4. Stored delta: `existing_delta + new_drag_delta` (mathematically correct accumulation)
+**解决方案**（第 1062–1095 行）：
+1. 当处于 `blendShapeEditMode` 时，通过应用已有混合变形增量（激活形态为 100% 影响强度）计算 `effectiveVerts`
+2. 这个“起始状态”成为每次拖动的 `verticesSnap`
+3. 随后 GPU 上传显示：混合基础 + 新拖动增量（视觉上正确）
+4. 存储的增量：`existing_delta + new_drag_delta`（数学上正确的累积）
 
 ```javascript
 if (editorRef.current.blendShapeEditMode && selNode.blendShapes?.length) {
@@ -121,31 +121,31 @@ if (editorRef.current.blendShapeEditMode && selNode.blendShapes?.length) {
 }
 ```
 
-**Additional fix**: Force active shape to 100% influence in the render loop (line ~260) so the canvas display matches what the user is editing.
+**附加修复**：在渲染循环（第 ~260 行）中强制激活形态为 100% 影响强度，使画布显示与用户正在编辑的内容一致。
 
 ---
 
-### Problem 2: Mesh Doesn't Deform During Animation Playback
+### 问题 2：动画播放期间网格不变形
 
-**Symptom**: During timeline playback, the blend shape influence slider in the Inspector changed correctly (showing interpolated keyframe values), but the mesh in the canvas didn't visually deform.
+**症状**：在时间轴播放期间，Inspector 中的混合变形影响强度滑块正确变化（显示插值后的关键帧值），但画布中的网格在视觉上没有变形。
 
-**Root Cause**:
-Every K-press (keyframe commit) was **unconditionally creating a `mesh_verts` keyframe** for the node, regardless of whether the user was deforming the mesh. This `mesh_verts` keyframe contained the **base (undeformed) vertex positions**.
+**根因**：
+每次按 K（提交关键帧）都**无条件地为节点创建一个 `mesh_verts` 关键帧**，无论用户是否正在变形网格。这个 `mesh_verts` 关键帧包含**基础（未变形）顶点位置**。
 
-During playback:
-1. `computePoseOverrides` returned: `{ 'blendShape:{id}': 0.5, mesh_verts: [base vertices] }`
-2. Blend shape application checked: `if (!existing.mesh_verts)` → **TRUE** (mesh_verts exists) → **SKIP blend formula**
-3. Result: GPU received base mesh, not blended mesh
+播放期间：
+1. `computePoseOverrides` 返回：`{ 'blendShape:{id}': 0.5, mesh_verts: [base vertices] }`
+2. 混合变形应用检查：`if (!existing.mesh_verts)` → **为真**（mesh_verts 存在）→ **跳过混合公式**
+3. 结果：GPU 收到基础网格，而非混合后的网格
 
-This was especially problematic because:
-- Every K-press (even pure blend shape influence keyframes) created these blocking `mesh_verts` entries
-- The blend shape formula was never applied during animation
-- The Guard was designed to prevent mesh_verts + blend shapes conflicts, but it was too aggressive
+这尤其成问题，因为：
+- 每次按 K（即使是纯粹的影响强度关键帧）都会创建这些阻断性的 `mesh_verts` 条目
+- 混合变形公式在动画期间从未被应用
+- 该守卫旨在防止 mesh_verts 与混合变形冲突，但它过于激进
 
-**Solution** (lines 421–447):
-Only create/update a `mesh_verts` keyframe when:
-1. The node has an active mesh deform (`draft.mesh_verts` is defined), **OR**
-2. A `mesh_verts` track already exists (continuing an established deform animation)
+**解决方案**（第 421–447 行）：
+仅在以下情况创建/更新 `mesh_verts` 关键帧：
+1. 节点有激活的网格变形（定义了 `draft.mesh_verts`），**或**
+2. 已存在 `mesh_verts` 轨道（继续一个既有的变形动画）
 
 ```javascript
 const hasMeshDeform = draft?.mesh_verts !== undefined;
@@ -156,24 +156,24 @@ if (hasMeshDeform || meshTrack) {
 }
 ```
 
-This way:
-- Pure blend shape K-presses don't create blocking `mesh_verts` entries
-- Existing deform animations continue to work
-- Blend shape animation works freely without interference
-- If a user mixes mesh_verts (deform) and blend shapes, mesh_verts takes priority (they don't interfere)
+这样：
+- 纯粹的混合变形按 K 不会创建阻断性的 `mesh_verts` 条目
+- 既有的变形动画继续正常工作
+- 混合变形动画可自由运行而不受干扰
+- 如果用户混合使用 mesh_verts（变形）和混合变形，mesh_verts 优先（两者不会互相干扰）
 
-**Note for existing projects**: Projects created before this fix may have polluted `mesh_verts` tracks. Deleting those tracks from the timeline will restore blend shape animation.
+**对既有项目的提示**：在此修复之前创建的项目可能有被污染的 `mesh_verts` 轨道。从时间轴中删除那些轨道将恢复混合变形动画。
 
 ---
 
-### Problem 3: Edit Mode Influence Not Visible
+### 问题 3：编辑模式下的影响强度不可见
 
-**Symptom**: When entering blend shape edit mode, the shape key was invisible if its influence slider was at 0.
+**症状**：进入混合变形编辑模式时，若形态键的影响强度滑块为 0，则该形态键不可见。
 
-**Root Cause**: The blend formula used `influences[j]` directly from keyframe/staging values, which could be 0.
+**根因**：混合公式直接使用来自关键帧/Staging 值的 `influences[j]`，其可能为 0。
 
-**Solution** (lines ~260–268 in rAF tick):
-When `blendShapeEditMode && activeBlendShapeId === shape.id`, force influence to 1.0 in the render loop:
+**解决方案**（rAF tick 中第 ~260–268 行）：
+当 `blendShapeEditMode && activeBlendShapeId === shape.id` 时，在渲染循环中强制影响强度为 1.0：
 
 ```javascript
 if (ed.blendShapeEditMode && ed.activeBlendShapeId === shape.id) {
@@ -182,146 +182,146 @@ if (ed.blendShapeEditMode && ed.activeBlendShapeId === shape.id) {
 }
 ```
 
-This ensures the canvas always shows a preview of what you're editing, matching Blender's behavior.
+这确保画布始终显示你正在编辑的内容的预览，与 Blender 的行为一致。
 
 ---
 
-### Problem 4: Canvas Not Redrawing on Edit Mode Entry/Exit
+### 问题 4：进入/退出编辑模式时画布不重绘
 
-**Symptom**: Entering or exiting blend shape edit mode didn't immediately redraw the canvas (no visual feedback).
+**症状**：进入或退出混合变形编辑模式时，画布不会立即重绘（没有视觉反馈）。
 
-**Root Cause**: The `isDirtyRef` trigger for canvas redraw (line 315) didn't include `blendShapeEditMode` or `activeBlendShapeId`.
+**根因**：用于触发画布重绘的 `isDirtyRef`（第 315 行）未包含 `blendShapeEditMode` 或 `activeBlendShapeId`。
 
-**Solution** (line 316–317):
-Added to the `useEffect` dependency list:
+**解决方案**（第 316–317 行）：
+添加到 `useEffect` 依赖列表：
 ```javascript
 useEffect(() => { isDirtyRef.current = true; },
   [...existing..., editorState.blendShapeEditMode, editorState.activeBlendShapeId]);
 ```
 
-Now the canvas immediately redraws when edit mode state changes.
+现在当编辑模式状态变化时，画布会立即重绘。
 
 ---
 
-## Usage
+## 用法
 
-### Creating a Shape Key
+### 创建形态键
 
-1. Select a part with a mesh
-2. In the Inspector, find the **Shape Keys** section (appears below Mesh panel if mesh exists)
-3. Click the **+** button
-4. A new shape key "Key N" is created with zero deltas
+1. 选择一个带网格的部件
+2. 在 Inspector 中找到 **Shape Keys** 区域（若存在网格，则显示在 Mesh 面板下方）
+3. 点击 **+** 按钮
+4. 会创建一个增量为零的新形态键 “Key N”
 
-### Editing a Shape Key
+### 编辑形态键
 
-1. Click the **pencil ✎** button next to the shape key name
-2. Header changes to **"Editing: [Shape Name]"**
-3. Use the deform brush (same as normal mesh editing) to modify the shape
-4. Brush size/hardness controls still apply
-5. Click **Done** to exit edit mode
+1. 点击形态键名称旁的**铅笔 ✎** 按钮
+2. 头部变为 **“Editing: [Shape Name]”**
+3. 使用变形笔刷（与普通网格编辑相同）修改形态
+4. 笔刷大小/硬度控制仍然适用
+5. 点击 **Done** 退出编辑模式
 
-### Animating Blend Shapes
+### 动画化混合变形
 
-**Staging mode** (non-animation):
-- Move the influence slider (0–1) and the mesh updates instantly
-- Changes persist in `node.blendShapeValues`
+**Staging 模式**（非动画）：
+- 移动影响强度滑块（0–1），网格即时更新
+- 更改持久化于 `node.blendShapeValues`
 
-**Animation mode**:
-- Move the influence slider
-- (Auto-keyframing enabled by default) K-press creates a keyframe
-- Keyframes are stored as `blendShape:{shapeId}` tracks with scalar values
-- Easing applies to influence interpolation
-- During playback, influences animate smoothly
+**动画模式**：
+- 移动影响强度滑块
+- （默认启用自动关键帧）按 K 创建关键帧
+- 关键帧存储为带标量值的 `blendShape:{shapeId}` 轨道
+- 缓动应用于影响强度插值
+- 播放期间，影响强度平滑动画
 
-### Practical Tips
+### 实用技巧
 
-- **Layer shapes**: Use multiple shape keys for different deformations (e.g., "Smile", "Blink", "Angry")
-- **Combine with rigging**: Blend shapes work alongside bone rigs; use both for complex character animation
-- **Keyframe at key frames**: Keyframe at start, middle, and end of an action; easing fills the gaps
-- **Edit mode preview**: The active shape is shown at 100% during edit mode, regardless of slider position
-- **Accumulative**: If "Smile" and "Blink" both have influence, their deltas ADD together
+- **层叠形态**：为不同变形使用多个形态键（例如 “Smile”、“Blink”、“Angry”）
+- **与绑定结合**：混合变形可与骨骼绑定并行工作；两者结合用于复杂角色动画
+- **在关键帧上打关键帧**：在动作的开始、中间和结尾打关键帧；缓动填补间隙
+- **编辑模式预览**：编辑模式期间激活形态以 100% 显示，无论滑块位置如何
+- **可累积**：若 “Smile” 和 “Blink” 都有效果，它们的增量会相加
 
 ---
 
-## Technical Notes
+## 技术说明
 
-### Relative Deltas (Not Absolute Positions)
+### 相对增量（而非绝对位置）
 
-Shape keys store **deltas** (`{dx, dy}`), not absolute positions. This design choice:
-- Makes shapes independent of the base mesh's current position
-- Allows re-meshing without losing shape data (the deltas still apply to new vertices)
-- Follows Blender's approach
+形态键存储的是**增量**（`{dx, dy}`），而非绝对位置。这一设计选择：
+- 使形态独立于基础网格的当前位置
+- 允许重新生成网格而不丢失形态数据（增量仍适用于新顶点）
+- 遵循 Blender 的方法
 
-### restX/restY as the Base
+### 以 restX/restY 为基础
 
-The blend formula uses `restX` and `restY` (the original mesh generation positions), not the current `x`/`y`. This means:
-- If you deform the base mesh in staging mode (`x`/`y` change), blend shapes still reference the original positions
-- Blend shapes are "locked" to the original mesh geometry
-- Future extension: re-base shapes to current mesh positions if needed
+混合公式使用 `restX` 和 `restY`（原始网格生成位置），而非当前的 `x`/`y`。这意味着：
+- 如果你在 Staging 模式中变形基础网格（`x`/`y` 改变），混合变形仍引用原始位置
+- 混合变形被“锁定”到原始网格几何
+- 未来扩展：若有需要，可将形态重新基于当前网格位置
 
-### mesh_verts vs. Blend Shapes
+### mesh_verts 与混合变形
 
-The animation system supports two vertex animation mechanisms:
+动画系统支持两种顶点动画机制：
 
-| Feature | Stores | Use Case |
+| 功能 | 存储内容 | 用例 |
 |---------|--------|----------|
-| `mesh_verts` keyframes | Absolute vertex positions | Direct mesh deformation animation (like keyframe sculpting) |
-| Blend shapes | Vertex deltas + influences | Parameter-based deformation (flexible, reusable) |
+| `mesh_verts` 关键帧 | 绝对顶点位置 | 直接网格变形动画（类似关键帧雕刻） |
+| 混合变形 | 顶点增量 + 影响强度 | 基于参数的变形（灵活、可复用） |
 
-Currently, they **don't fully coexist**: if a node has both, `mesh_verts` keyframes take priority, and blend shapes are skipped (the guard at line ~272 prevents conflicts). This can be improved in the future.
+目前，它们**无法完全共存**：若某节点同时拥有两者，`mesh_verts` 关键帧优先，混合变形被跳过（第 ~272 行的守卫防止冲突）。这在未来可以改进。
 
-### GPU Efficiency
+### GPU 效率
 
-- Blend formula runs once per frame during render, not per-vertex
-- Blended vertices are uploaded once via `uploadPositions` (GPU batch update)
-- No per-frame re-triangulation or topology changes
-- Performance: negligible overhead for reasonable vertex/shape counts
-
----
-
-## Future Enhancements
-
-1. **Shape key visibility toggle**: Hide/show individual shapes in the canvas
-2. **Shape key export**: Save/load shape keys from external formats
-3. **Auto-shape-creation**: Generate initial shape keys from user-drawn variations
-4. **Shape blending UI**: Advanced panel to visualize and adjust multiple influences
-5. **Mesh + Shape combo**: Resolve the `mesh_verts` vs. blend shapes conflict for true hybrid animation
-6. **Symmetry**: Mirror a shape key across the X-axis for bilateral characters
-7. **Relative vs. absolute**: Toggle between delta-based and absolute vertex storage modes
+- 混合公式在渲染期间每帧运行一次，而非逐顶点
+- 混合后的顶点通过 `uploadPositions` 一次性上传（GPU 批量更新）
+- 无每帧重新三角剖分或拓扑变化
+- 性能：在合理的顶点/形态数量下开销可忽略
 
 ---
 
-## Code Locations
+## 未来增强
 
-| Component | File | Lines |
+1. **形态键可见性开关**：在画布中隐藏/显示单个形态
+2. **形态键导出**：从外部格式保存/载入形态键
+3. **自动形态创建**：从用户绘制的变体生成初始形态键
+4. **形态混合 UI**：用于可视化并调整多个影响强度的高级面板
+5. **网格 + 形态组合**：解决 `mesh_verts` 与混合变形的冲突，以实现真正的混合动画
+6. **对称**：为双侧角色沿 X 轴镜像形态键
+7. **相对与绝对**：在基于增量与绝对顶点存储模式之间切换
+
+---
+
+## 代码位置
+
+| 组件 | 文件 | 行号 |
 |-----------|------|-------|
-| Data model actions | `src/store/projectStore.js` | ~113–162 |
-| Edit mode state | `src/store/editorStore.js` | ~66–102 |
-| Animation engine | `src/renderer/animationEngine.js` | ~9, ~224–232 |
-| Blend formula | `src/components/canvas/CanvasViewport.jsx` | ~240–275 |
-| Edit mode (onPointerDown) | `src/components/canvas/CanvasViewport.jsx` | ~1062–1095 |
-| Edit mode (brush drag) | `src/components/canvas/CanvasViewport.jsx` | ~1216–1235 |
-| K-key handler | `src/components/canvas/CanvasViewport.jsx` | ~444–464, ~421–447 |
+| 数据模型 actions | `src/store/projectStore.js` | ~113–162 |
+| 编辑模式状态 | `src/store/editorStore.js` | ~66–102 |
+| 动画引擎 | `src/renderer/animationEngine.js` | ~9, ~224–232 |
+| 混合公式 | `src/components/canvas/CanvasViewport.jsx` | ~240–275 |
+| 编辑模式（onPointerDown） | `src/components/canvas/CanvasViewport.jsx` | ~1062–1095 |
+| 编辑模式（笔刷拖动） | `src/components/canvas/CanvasViewport.jsx` | ~1216–1235 |
+| K 键处理器 | `src/components/canvas/CanvasViewport.jsx` | ~444–464, ~421–447 |
 | UI Inspector | `src/components/inspector/Inspector.jsx` | ~525–660 |
-| File I/O | `src/io/projectFile.js` | ~95–102 |
+| 文件 I/O | `src/io/projectFile.js` | ~95–102 |
 
 ---
 
-## Testing Checklist
+## 测试清单
 
-- [ ] Create a new shape key on a meshed part
-- [ ] Edit the shape key using the deform brush (multiple drags, no visual revert)
-- [ ] Set influence slider to various values, see mesh deform in real-time
-- [ ] In animation mode, move slider → K to create keyframes at different times
-- [ ] Scrub the timeline, verify blend shapes animate smoothly
-- [ ] Create multiple shapes, verify influences blend additively
-- [ ] Save/load project, verify blend shapes persist
-- [ ] Edit mode: active shape shows at 100% regardless of slider
-- [ ] Edit mode: exiting and re-entering shows saved deltas
-- [ ] Mesh_verts tracks don't appear for pure shape key animations (after fix)
+- [ ] 在带网格的部件上创建新形态键
+- [ ] 使用变形笔刷编辑形态键（多次拖动，无视觉回退）
+- [ ] 将影响强度滑块设为不同值，实时看到网格变形
+- [ ] 在动画模式中移动滑块 → 按 K 在不同时间创建关键帧
+- [ ] 刮擦时间轴，验证混合变形平滑动画
+- [ ] 创建多个形态，验证影响强度按叠加方式混合
+- [ ] 保存/载入项目，验证混合变形持久化
+- [ ] 编辑模式：激活形态以 100% 显示，无论滑块如何
+- [ ] 编辑模式：退出再进入显示已保存的增量
+- [ ] 纯形态键动画不会出现 mesh_verts 轨道（修复后）
 
 ---
 
-**Last updated**: April 2026
-**Author**: Claude (Anthropic)
-**Status**: Complete, tested, documented
+**最后更新**：2026 年 4 月
+**作者**：Claude (Anthropic)
+**状态**：完成、已测试、已文档化

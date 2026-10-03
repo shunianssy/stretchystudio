@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 export function AnimationListPanel() {
+  const { t } = useTranslation();
   const proj = useProjectStore(s => s.project);
   const createAnimation = useProjectStore(s => s.createAnimation);
   const renameAnimation = useProjectStore(s => s.renameAnimation);
@@ -67,13 +69,13 @@ export function AnimationListPanel() {
     <div className="flex flex-col h-full bg-card border-t border-border overflow-hidden">
       {/* Header */}
       <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between bg-muted/30">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Animations</h2>
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('timeline.animationList.title')}</h2>
         <Button 
           variant="ghost" 
           size="icon" 
           className="h-5 w-5 hover:bg-muted" 
           onClick={handleCreate}
-          title="Create New Animation"
+          title={t('timeline.animationList.createNew')}
         >
           <Plus className="h-3 w-3" />
         </Button>
@@ -83,7 +85,7 @@ export function AnimationListPanel() {
       <div className="flex-1 overflow-y-auto py-1">
         {proj.animations.length === 0 ? (
           <div className="p-4 text-center">
-            <p className="text-[10px] text-muted-foreground italic">No animations.</p>
+            <p className="text-[10px] text-muted-foreground italic">{t('timeline.animationList.empty')}</p>
           </div>
         ) : (
           <div className="space-y-px">
@@ -124,7 +126,7 @@ export function AnimationListPanel() {
                         {(anim.duration / 1000).toFixed(1)}s · {anim.fps}fps
                       </p>
                     </div>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-0.5">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -160,14 +162,14 @@ export function AnimationListPanel() {
       <Dialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Animation</DialogTitle>
+            <DialogTitle>{t('timeline.animationList.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this animation? This will remove all associated tracks and keyframes.
+              {t('timeline.animationList.deleteDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete Animation</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>{t('common.cancel')}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t('timeline.animationList.deleteConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

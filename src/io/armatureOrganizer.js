@@ -10,6 +10,8 @@
  */
 
 
+import { t } from '@/i18n';
+
 // Lazy-loaded onnxruntime-web
 let _ortPromise = null;
 
@@ -278,7 +280,7 @@ export async function runDWPose(layers, psdW, psdH, onnxSession, onStatus) {
   const TARGET_W = 288;
   const TARGET_H = 384;
 
-  onStatus?.('Compositing character…');
+  onStatus?.(t('io.progress.compositingCharacter'));
 
   // Build composite from ImageData layers (ag-psd gives us imageData on each layer)
   const tmp = document.createElement('canvas');
@@ -309,7 +311,7 @@ export async function runDWPose(layers, psdW, psdH, onnxSession, onStatus) {
   pctx.fillRect(0, 0, TARGET_W, TARGET_H);
   pctx.drawImage(tmp, padX, padY, newW, newH);
 
-  onStatus?.('Running DWPose inference…');
+  onStatus?.(t('io.progress.runningDwpose'));
 
   // ImageNet normalisation (same as prototype)
   const imgData  = pctx.getImageData(0, 0, TARGET_W, TARGET_H).data;
@@ -335,7 +337,7 @@ export async function runDWPose(layers, psdW, psdH, onnxSession, onStatus) {
     if (t.dims[2] === 576) simcc_x = t.data;
     else if (t.dims[2] === 768) simcc_y = t.data;
   }
-  if (!simcc_x || !simcc_y) throw new Error('DWPose: unexpected output format (no simcc_x/simcc_y).');
+  if (!simcc_x || !simcc_y) throw new Error(t('io.errors.dwposeOutputFormat'));
 
   // Decode argmax from SimCC bins → model coords → PSD image coords
   const nKp = 133, xBins = 576, yBins = 768;

@@ -20,6 +20,7 @@ import { computeWorldMatrices, mat3Identity, mat3Inverse } from '@/renderer/tran
 import { computePoseOverrides } from '@/renderer/animationEngine';
 import { useToast } from '@/hooks/use-toast';
 import { beginBatch, endBatch } from '@/store/undoHistory';
+import { useTranslation } from '@/i18n';
 
 // Colour palette
 const COLOUR_NORMAL = '#ef4444';      // red — not in edit mode
@@ -90,6 +91,7 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
   useEffect(() => { setDraftPoseRef.current = setDraftPose; }, [setDraftPose]);
 
   const { toast } = useToast();
+  const { t } = useTranslation();
   useEffect(() => {
     if (selection.length !== 1) return;
     const nodeId = selection[0];
@@ -101,12 +103,12 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       const hasDependent = nodes.some(n => n.type === 'part' && n.mesh?.jointBoneId === node.id);
       if (!hasDependent) {
         toast({
-          title: "Limb mesh required",
-          description: "To enable rotation: (1) Hide armature, (2) Select the limb layer, (3) Click 'Remesh'."
+          title: t('canvas.skeleton.limbMesh.title'),
+          description: t('canvas.skeleton.limbMesh.description')
         });
       }
     }
-  }, [selection, nodes, toast]);
+  }, [selection, nodes, toast, t]);
 
   // Compute effective nodes (animation overrides + draft pose)
   const ANIM_KEYS = ['x', 'y', 'rotation', 'scaleX', 'scaleY'];
@@ -553,7 +555,7 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       trackpads.push(
         <g key={`trackpad-${role}`}>
           <text x={tpx} y={tpy - half - 8} textAnchor="middle" fontSize={10} fill="rgba(255,255,255,0.8)" style={{ userSelect: 'none', pointerEvents: 'none', fontWeight: 600 }}>
-            Iris Offset
+            {t('canvas.skeleton.irisOffset')}
           </text>
           <rect
              x={tpx - half} y={tpy - half} width={TP_SIZE} height={TP_SIZE} rx={8}
@@ -611,10 +613,10 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       {/* Floating instruction toolbar — skeleton edit mode */}
       {skeletonEditMode && (
         <div className="absolute top-0 inset-x-0 z-40 flex items-center gap-4 px-4 py-2
-                        bg-background/90 border-b border-border backdrop-blur-sm">
-          <span className="text-xs font-semibold text-foreground">Adjust Joints</span>
+                        bg-background border-b border-border">
+          <span className="text-xs font-semibold text-foreground">{t('canvas.joints.title')}</span>
           <span className="text-xs text-muted-foreground flex-1">
-            Drag yellow dots to reposition joints.
+            {t('canvas.joints.hint')}
           </span>
         </div>
       )}

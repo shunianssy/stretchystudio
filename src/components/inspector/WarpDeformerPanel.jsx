@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '@/i18n';
 import { useProjectStore } from '@/store/projectStore';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { Grid2x2 } from 'lucide-react';
  * when the warp deformer is selected.
  */
 export function WarpDeformerPanel({ node }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const parameters    = useProjectStore(s => s.project.parameters);
   const animations    = useProjectStore(s => s.project.animations);
   const allNodes      = useProjectStore(s => s.project.nodes);
@@ -84,12 +86,12 @@ export function WarpDeformerPanel({ node }) {
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        <Grid2x2 className="h-3.5 w-3.5" /> Warp Deformer
+        <Grid2x2 className="h-3.5 w-3.5" /> {t('panels.warpDeformer.title')}
       </div>
 
       {/* Grid dimensions */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Grid size (col × row control points)</Label>
+        <Label className="text-xs text-muted-foreground">{t('panels.warpDeformer.gridSize')}</Label>
         <div className="flex items-center gap-2">
           <Input
             type="number" min="1" max="10"
@@ -105,7 +107,7 @@ export function WarpDeformerPanel({ node }) {
             onChange={e => update({ row: Math.max(1, Math.min(10, Number(e.target.value))) })}
           />
           <span className="text-xs text-muted-foreground">
-            = {((node.col ?? 2) + 1) * ((node.row ?? 2) + 1)} pts
+            {t('panels.warpDeformer.points', { count: ((node.col ?? 2) + 1) * ((node.row ?? 2) + 1) })}
           </span>
         </div>
       </div>
@@ -113,9 +115,9 @@ export function WarpDeformerPanel({ node }) {
       {/* Bounding box */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-muted-foreground">Grid bounds (canvas px)</Label>
+          <Label className="text-xs text-muted-foreground">{t('panels.warpDeformer.gridBounds')}</Label>
           <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={fitToChildren}>
-            Fit to children
+            {t('panels.warpDeformer.fitToChildren')}
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -136,9 +138,9 @@ export function WarpDeformerPanel({ node }) {
       {/* Parameter binding */}
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">
-          Driven by parameter
+          {t('panels.warpDeformer.drivenByParameter')}
           <span className="block font-normal text-muted-foreground/70">
-            Moving this parameter scrubs the warp deformer keyforms.
+            {t('panels.warpDeformer.drivenByParameterHint')}
           </span>
         </Label>
         <select
@@ -146,7 +148,7 @@ export function WarpDeformerPanel({ node }) {
           value={node.parameterId ?? ''}
           onChange={e => update({ parameterId: e.target.value || null })}
         >
-          <option value="">— none —</option>
+          <option value="">{t('panels.warpDeformer.noneOption')}</option>
           {parameters.map(p => (
             <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
           ))}
@@ -155,8 +157,7 @@ export function WarpDeformerPanel({ node }) {
 
       {node.parameterId && (
         <p className="text-[10px] text-muted-foreground italic">
-          Keyform canvas editing: select the warp deformer, then drag control points in the canvas
-          at each parameter value to build the deformation.
+          {t('panels.warpDeformer.keyformHint')}
         </p>
       )}
     </div>

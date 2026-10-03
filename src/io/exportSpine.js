@@ -4,6 +4,7 @@
  * Logic to export the Stretchy Studio project to Spine 4.0 JSON format.
  */
 import { computeWorldMatrices } from '@/renderer/transforms';
+import { t } from '@/i18n';
 
 /**
  * Main entry point for Spine export.
@@ -13,11 +14,11 @@ export async function exportToSpine({ project, onProgress }) {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
 
-  onProgress?.('Preparing skeleton data...');
+  onProgress?.(t('io.progress.preparingSkeletonData'));
   const skeletonData = buildSpineJson(project);
   zip.file('skeleton.json', JSON.stringify(skeletonData, null, 2));
 
-  onProgress?.('Collecting textures...');
+  onProgress?.(t('io.progress.collectingTextures'));
   const imagesFolder = zip.folder('images');
   
   for (const node of project.nodes) {
@@ -32,13 +33,13 @@ export async function exportToSpine({ project, onProgress }) {
       const ext = blob.type === 'image/webp' ? 'webp' : 'png';
       const filename = `${sanitizeName(node.name)}.${ext}`;
       imagesFolder.file(filename, blob);
-      onProgress?.(`Packing image: ${filename}`);
+      onProgress?.(t('io.progress.packingImage', { filename }));
     } catch (err) {
       console.warn(`[Spine Export] Failed to fetch texture for ${node.name}:`, err);
     }
   }
 
-  onProgress?.('Generating ZIP...');
+  onProgress?.(t('io.progress.generatingZip'));
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   return zipBlob;
 }

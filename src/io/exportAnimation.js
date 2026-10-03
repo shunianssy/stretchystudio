@@ -1,4 +1,5 @@
 import { computeWorldMatrices, computeEffectiveProps } from '@/renderer/transforms';
+import { t } from '@/i18n';
 
 /**
  * Compute frame specifications for export based on type, animations, and timing.
@@ -161,11 +162,11 @@ async function exportToZip(frames, ext, onProgress) {
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       folder.file(filename, blob);
-      onProgress?.(`Packing ${animName}/${filename}`);
+      onProgress?.(t('io.progress.packingFile', { animName, filename }));
     }
   }
 
-  onProgress?.('Generating ZIP...');
+  onProgress?.(t('io.progress.generatingZip'));
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(zipBlob);
   const a = document.createElement('a');
@@ -205,7 +206,7 @@ async function exportToFolder(frames, ext, onProgress) {
       const blob = await response.blob();
       await writable.write(blob);
       await writable.close();
-      onProgress?.(`Writing ${animName}/${filename}`);
+      onProgress?.(t('io.progress.writingFile', { animName, filename }));
     }
   }
 }

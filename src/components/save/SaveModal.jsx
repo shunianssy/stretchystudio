@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from '@/i18n';
 
 export function SaveModal({
   open,
@@ -35,6 +36,7 @@ export function SaveModal({
   currentDbProjectName,
   onSavedToDb,
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [saveMode, setSaveMode] = useState('library'); // 'library' | 'download'
   const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +45,7 @@ export function SaveModal({
 
   useEffect(() => {
     if (open) {
-      setName(currentDbProjectName || 'Untitled Project');
+      setName(currentDbProjectName || t('io.save.untitledProject'));
       setSaveMode(currentDbProjectId ? 'library' : 'library'); // Default to library now we have a gallery
       setIsSaving(false);
     }
@@ -112,7 +114,7 @@ export function SaveModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2 border-b">
-            <DialogTitle>Save Project</DialogTitle>
+            <DialogTitle>{t('io.save.title')}</DialogTitle>
           </DialogHeader>
           
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -121,19 +123,19 @@ export function SaveModal({
               <div className="flex flex-col gap-4 max-w-lg">
                 <div className="grid gap-2">
                   <Label htmlFor="name" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Project Name
+                    {t('io.save.projectName')}
                   </Label>
                   <div className="flex gap-2">
                     <Input
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter project name..."
+                      placeholder={t('io.save.projectNamePlaceholder')}
                       className="h-10"
                     />
                     <Button onClick={handleSaveNew} disabled={isSaving || !name.trim()} className="shrink-0 h-10 px-6">
                       {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save
+                      {t('common.save')}
                     </Button>
                   </div>
                 </div>
@@ -142,11 +144,11 @@ export function SaveModal({
                   <TabsList className="grid w-full grid-cols-2 h-12">
                     <TabsTrigger value="library" className="flex items-center gap-2 text-sm font-medium h-10">
                       <Library className="h-4 w-4" />
-                      Save to Library
+                      {t('io.save.saveToLibrary')}
                     </TabsTrigger>
                     <TabsTrigger value="download" className="flex items-center gap-2 text-sm font-medium h-10">
                       <Download className="h-4 w-4" />
-                      Download File
+                      {t('io.save.downloadFile')}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -174,20 +176,19 @@ export function SaveModal({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Overwrite project?
+              {t('io.save.overwriteTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to overwrite <strong>"{overwriteProject?.name}"</strong>? 
-              This will replace the project data and thumbnail in your library.
+              {t('io.save.overwriteDescPrefix')} <strong>"{overwriteProject?.name}"</strong>{t('io.save.overwriteDescSuffix')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmOverwrite}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Overwrite
+              {t('io.save.overwrite')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

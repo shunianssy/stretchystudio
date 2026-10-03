@@ -314,7 +314,8 @@ export const cleanSlateLightPreset = {
   id: 'clean_slate-light',
   name: 'Clean Slate',
   colors: {
-    'background': '210.00 40.00% 98.04%',
+    // 纯白底 + 浅灰细边框 + indigo 强调色（克制的浅色默认）
+    'background': '0 0% 100%',
     'foreground': '217.24 32.58% 17.45%',
     'card': '0 0% 100%',
     'card-foreground': '217.24 32.58% 17.45%',
@@ -330,8 +331,8 @@ export const cleanSlateLightPreset = {
     'accent-foreground': '216.92 19.12% 26.67%',
     'destructive': '0 84.24% 60.20%',
     'destructive-foreground': '0 0% 100%',
-    'border': '216.00 12.20% 83.92%',
-    'input': '216.00 12.20% 83.92%',
+    'border': '220 13.04% 90.98%',
+    'input': '220 13.04% 90.98%',
     'ring': '238.73 83.53% 66.67%',
     'chart-1': '238.73 83.53% 66.67%',
     'chart-2': '243.40 75.36% 58.63%',
@@ -531,30 +532,31 @@ export const modernMinimalDarkPreset = {
   id: 'modern_minimal-dark',
   name: 'Modern Minimal',
   colors: {
-    'background': '0 0% 9.02%',
-    'foreground': '0 0% 89.80%',
-    'card': '0 0% 14.90%',
-    'card-foreground': '0 0% 89.80%',
-    'popover': '0 0% 14.90%',
-    'popover-foreground': '0 0% 89.80%',
-    'primary': '217.22 91.22% 59.80%',
+    // 近黑背景 + 细分层 + 冷灰边框，单一 indigo 强调色（Linear 风格）
+    'background': '0 0% 4.31%',
+    'foreground': '0 0% 96.86%',
+    'card': '0 0% 6.67%',
+    'card-foreground': '0 0% 96.86%',
+    'popover': '0 0% 7.84%',
+    'popover-foreground': '0 0% 96.86%',
+    'primary': '233.33 55% 60%',
     'primary-foreground': '0 0% 100%',
-    'secondary': '0 0% 14.90%',
-    'secondary-foreground': '0 0% 89.80%',
-    'muted': '0 0% 14.90%',
-    'muted-foreground': '0 0% 63.92%',
-    'accent': '224.44 64.29% 32.94%',
-    'accent-foreground': '213.33 96.92% 87.25%',
+    'secondary': '0 0% 10.20%',
+    'secondary-foreground': '0 0% 96.86%',
+    'muted': '0 0% 9.02%',
+    'muted-foreground': '220 6.19% 56.86%',
+    'accent': '0 0% 12.94%',
+    'accent-foreground': '0 0% 96.86%',
     'destructive': '0 84.24% 60.20%',
     'destructive-foreground': '0 0% 100%',
-    'border': '0 0% 25.10%',
-    'input': '0 0% 25.10%',
-    'ring': '217.22 91.22% 59.80%',
-    'chart-1': '213.12 93.90% 67.84%',
-    'chart-2': '217.22 91.22% 59.80%',
-    'chart-3': '221.21 83.19% 53.33%',
-    'chart-4': '224.28 76.33% 48.04%',
-    'chart-5': '225.93 70.73% 40.20%',
+    'border': '225 8% 15%',
+    'input': '225 8% 15%',
+    'ring': '233.33 55% 60%',
+    'chart-1': '233.33 55% 60%',
+    'chart-2': '230.49 44.09% 63.53%',
+    'chart-3': '206.71 89.02% 67.84%',
+    'chart-4': '174.29 41.83% 50.78%',
+    'chart-5': '325.52 100% 73.73%',
   }
 };
 
@@ -822,7 +824,7 @@ export const discordDarkPreset = {
   }
 };
 
-export const defaultLightPreset = sunsetHorizonDarkPreset;
+export const defaultLightPreset = cleanSlateLightPreset;
 
 export const defaultDarkPreset = modernMinimalDarkPreset;
 

@@ -16,8 +16,15 @@ import { ArmaturePanel } from '@/components/armature/ArmaturePanel';
 import { ParametersPanel } from '@/components/parameters/ParametersPanel';
 import { ExportModal } from '@/components/export/ExportModal';
 import { PreferencesModal } from '@/components/preferences/PreferencesModal';
-import { Save, FolderOpen, FilePlus, Palette, Sun, Moon, SquareChartGantt, Download, Settings2, Undo2, Redo2 } from 'lucide-react';
+import { Save, FolderOpen, FilePlus, Palette, Sun, Moon, SquareChartGantt, Download, Settings2, Undo2, Redo2, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useTranslation, SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from '@/i18n';
 import {
   Tooltip,
   TooltipContent,
@@ -109,6 +116,9 @@ export default function EditorLayout() {
     fontFamily, setFontFamily,
     fontSize, setFontSize,
   } = useTheme();
+
+  // 国际化：当前语言与切换方法
+  const { t, lang, setLang } = useTranslation();
   
   // Warn before closing tab if there are unsaved changes
   React.useEffect(() => {
@@ -266,7 +276,7 @@ export default function EditorLayout() {
                   setCurrentDbProjectName(null);
                 }
               }}
-              title="New project"
+              title={t('editor.topBar.newProject')}
             >
               <FilePlus className="h-4 w-4" />
             </Button>
@@ -275,7 +285,7 @@ export default function EditorLayout() {
               size="icon"
               className="h-full w-9 rounded-none border-l hover:bg-muted"
               onClick={() => setSaveModalOpen(true)}
-              title="Save project"
+              title={t('editor.topBar.saveProject')}
             >
               <Save className="h-4 w-4" />
             </Button>
@@ -284,7 +294,7 @@ export default function EditorLayout() {
               size="icon"
               className="h-full w-9 rounded-none border-l hover:bg-muted"
               onClick={() => setLoadModalOpen(true)}
-              title="Load project"
+              title={t('editor.topBar.loadProject')}
             >
               <FolderOpen className="h-4 w-4" />
             </Button>
@@ -293,7 +303,7 @@ export default function EditorLayout() {
               size="icon"
               className="h-full w-9 rounded-none border-l hover:bg-muted"
               onClick={() => setExportModalOpen(true)}
-              title="Export frames"
+              title={t('editor.topBar.exportFrames')}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -305,20 +315,20 @@ export default function EditorLayout() {
                   variant="ghost"
                   size="icon"
                   className="h-full w-9 rounded-none border-l hover:bg-muted"
-                  title="Canvas Properties"
+                  title={t('editor.canvasProps.title')}
                 >
                   <SquareChartGantt className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-4 space-y-3 shadow-2xl border-border/60">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Canvas Properties
+                  {t('editor.canvasProps.title')}
                 </p>
 
                 {/* Width / Height row */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Width</Label>
+                    <Label className="text-xs text-muted-foreground">{t('common.width')}</Label>
                     <Input
                       type="number"
                       className="h-7 text-xs"
@@ -328,7 +338,7 @@ export default function EditorLayout() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Height</Label>
+                    <Label className="text-xs text-muted-foreground">{t('common.height')}</Label>
                     <Input
                       type="number"
                       className="h-7 text-xs"
@@ -342,7 +352,7 @@ export default function EditorLayout() {
                 {/* X / Y offset row */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">X Offset</Label>
+                    <Label className="text-xs text-muted-foreground">{t('editor.canvasProps.xOffset')}</Label>
                     <Input
                       type="number"
                       className="h-7 text-xs"
@@ -351,7 +361,7 @@ export default function EditorLayout() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Y Offset</Label>
+                    <Label className="text-xs text-muted-foreground">{t('editor.canvasProps.yOffset')}</Label>
                     <Input
                       type="number"
                       className="h-7 text-xs"
@@ -369,7 +379,7 @@ export default function EditorLayout() {
                     onCheckedChange={checked => updateCanvas({ bgEnabled: !!checked })}
                   />
                   <Label htmlFor="canvas-bg-enable" className="text-xs cursor-pointer">
-                    Background Color
+                    {t('editor.canvasProps.backgroundColor')}
                   </Label>
                 </div>
 
@@ -401,7 +411,7 @@ export default function EditorLayout() {
                     if (bounds) updateCanvas(bounds);
                   }}
                 >
-                  Fit to minimum animation area
+                  {t('editor.canvasProps.fitToMinArea')}
                 </Button>
               </PopoverContent>
             </Popover>
@@ -411,10 +421,35 @@ export default function EditorLayout() {
               size="icon"
               className="h-full w-9 rounded-none border-l hover:bg-muted"
               onClick={() => setPreferencesOpen(true)}
-              title="Preferences"
+              title={t('editor.topBar.preferences')}
             >
               <Settings2 className="h-4 w-4" />
             </Button>
+
+            {/* 语言切换 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-full w-9 rounded-none border-l hover:bg-muted"
+                  title={t('editor.topBar.language')}
+                >
+                  <Languages className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[8rem]">
+                {SUPPORTED_LANGUAGES.map((code) => (
+                  <DropdownMenuItem
+                    key={code}
+                    onSelect={() => setLang(code)}
+                    className={cn('text-xs', lang === code && 'font-semibold text-primary')}
+                  >
+                    {LANGUAGE_LABELS[code]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             </div>
           </div>
@@ -434,11 +469,11 @@ export default function EditorLayout() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
-                    Staging
+                    {t('editor.mode.staging')}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  In Staging mode, you set the base layout, mesh structure, and joint positions.
+                  {t('editor.mode.stagingTip')}
                 </TooltipContent>
               </Tooltip>
 
@@ -456,11 +491,11 @@ export default function EditorLayout() {
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
-                    Animation
+                    {t('editor.mode.animation')}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  In Animation mode, you create keyframes on the timeline.
+                  {t('editor.mode.animationTip')}
                 </TooltipContent>
               </Tooltip>
 
@@ -484,7 +519,7 @@ export default function EditorLayout() {
                     <Undo2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                <TooltipContent side="bottom">{t('editor.topBar.undo')}</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -505,14 +540,14 @@ export default function EditorLayout() {
                     <Redo2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+                <TooltipContent side="bottom">{t('editor.topBar.redo')}</TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>
         )}
 
         <div className="flex-1" />
-        <span className="text-xs text-muted-foreground hidden sm:block">Scroll to zoom · Alt+drag to pan</span>
+        <span className="text-xs text-muted-foreground hidden sm:block">{t('editor.topBar.zoomHint')}</span>
       </header>
 
       {/* Workspace */}
@@ -524,7 +559,7 @@ export default function EditorLayout() {
               <ResizablePanel defaultSize={18} minSize={12} maxSize={28}>
                 <div className="flex h-full flex-col border-r">
                   <div className="px-3 py-2 border-b shrink-0">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Layers</h2>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('editor.panels.layers')}</h2>
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <LayerPanel />
@@ -579,7 +614,7 @@ export default function EditorLayout() {
                       <ParametersPanel />
                       <ArmaturePanel />
                       <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between">
-                        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspector</h2>
+                        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('editor.panels.inspector')}</h2>
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <Inspector onRemesh={handleRemesh} onDeleteMesh={handleDeleteMesh} />
@@ -657,14 +692,13 @@ export default function EditorLayout() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace current project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('editor.confirm.replaceTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all existing layers, meshes, and 
-              animations in your current workspace. Unsaved changes will be lost.
+              {t('editor.confirm.replaceDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => {
                 if (confirmWipe.type === 'db') handleLoadRecord(confirmWipe.data);
@@ -678,7 +712,7 @@ export default function EditorLayout() {
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Replace Workspace
+              {t('editor.confirm.replaceWorkspace')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -691,17 +725,17 @@ export default function EditorLayout() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Store imported project in Library?</AlertDialogTitle>
+            <AlertDialogTitle>{t('editor.confirm.storeTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Would you like to save this project to your library so you can access it easily later?
+              {t('editor.confirm.storeDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => finalizeLoadFile(confirmStore.file, false)}>
-              Skip
+              {t('editor.confirm.skip')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => finalizeLoadFile(confirmStore.file, true)}>
-              Save to Library
+              {t('editor.confirm.saveToLibrary')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

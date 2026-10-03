@@ -1,83 +1,83 @@
 # 🧬 Stretchy Studio
 
-**Stretchy Studio** is a high-performance 2D animation tool designed for illustrators and animators. It streamlines the workflow from static 2D artwork (PSD/PNG) to fully realized, mesh-deformable animations and spritesheets.
+**Stretchy Studio** 是一款为插画师和动画师设计的高性能 2D 动画工具。它简化了从静态 2D 美术作品（PSD/PNG）到完整实现的、可网格变形的动画与精灵表的整个工作流程。
 
-Unlike traditional bone-based systems, Stretchy Studio focuses on a **timeline-first, direct-deformation workflow** reminiscent of After Effects, providing a lower learning curve while maintaining professional-grade flexibility.
+与传统的基于骨骼的系统不同，Stretchy Studio 专注于**时间轴优先、直接变形的工作流程**，令人联想到 After Effects，在保持专业级灵活性的同时降低了学习门槛。
 
 ![Project Status](https://img.shields.io/badge/Status-M5_Complete-success?style=for-the-badge)
 ![Tech Stack](https://img.shields.io/badge/Stack-React_|_WebGL2_|_Zustand-blue?style=for-the-badge)
 
 ---
 
-## 🔗 Links
+## 🔗 链接
 
-- **🚀 Launch App**: [editor.stretchy.studio](https://editor.stretchy.studio)
-- **💬 Discord**: [Join our community](https://discord.com/invite/zB6TrHTwAb)
-- **💻 GitHub**: [mangoLion/stretchystudio](https://github.com/mangoLion/stretchystudio)
-- **🌐 Landing Page**: [stretchy.studio](https://stretchy.studio) (or local `/landing/index.html`)
-
----
-
-## ✨ Key Features
-
-### 📂 Intelligent Import
-- **PSD Layer Extraction**: Full support for multi-layer PSD files with layer names, order, and opacity preserved.
-- **Character Format Detection**: Intelligent recognition of 23+ character part tags (e.g., *eyebrow_L*, *topwear*, *footwear*). Automatically organizes layers into a structured **Head** (with **Eyes** subgroup), **Body** (with **Upper/Lowerbody**), and **Extras** hierarchy while preserving the original PSD draw order.
-- **Mesh-on-Demand**: Start with lightweight textures; opt-in to low-poly mesh generation for advanced deformation when needed (Defaults: Alpha Threshold 5, Smooth Passes 0).
-
-### 📐 Precision Rigging
-- **Hierarchical Transforms**: Nested group structures with parent-child transform inheritance.
-- **Intuitive Gizmos**: World-space move and rotate handles for direct canvas manipulation; rotatable skeletal arcs on animation timeline.
-- **3-Step Import Wizard**: Choose between manual (heuristic) or AI-powered (DWPose) rigging, then adjust joints on canvas before committing.
-- **Armature Auto-Rig**: Two skeleton detection methods:
-  - **Manual (Heuristic)**: Instant skeleton estimation from layer bounding boxes — no model download needed.
-  - **DWPose ONNX**: High-accuracy whole-body pose detection for see-through PSD characters.
-- **Joint Adjustment**: Full-canvas skeleton overlay with draggable joint circles. Back button reverts to previous wizard step anytime before completion.
-- **Bone Hierarchy**: Joint-based bones as group nodes with pivotX/Y positioning (root → torso → head → eyes; legs; arms with elbow/knee joints).
-- **2D Iris Trackpad**: Dedicated 2D square trackpad UI for intuitive iris/eye movement; anchored optimally above the head to avoid face obstruction.
-- **Limb Bending (Elbows/Knees)**: Realistic 2D vertex skinning for arms and legs. Automatically computes bone weights by projecting vertices onto bone axes. Works seamlessly with direct rotation handles.
-- **Automatic Iris Clipping**: Advanced stencil-based masking keeps irides contained within eyewhites. Intelligent L/R matching handles split-eye characters out-of-the-box via name-suffix detection.
-- **Pivot Calibration**: Accurate pivot placement for natural rotations and scaling.
-- **Selection Isolation**: Selection and Gizmos automatically lock/hide when skeleton is active AND a rig exists to focus on bone joint setup. Standard selection remains enabled for un-rigged projects.
-- **Alpha-Based Selection**: Pixel-perfect selection that works instantly on both textured quads and complex meshes.
-- **Shape Keys (Blend Shapes)**: Blender-inspired vertex delta system. Create multiple mesh variations (e.g., "Mouth Open", "Angry Eye") and blend them additively using influence sliders (0.0–1.0).
-  - **Deltas-Based**: Stores offsets from the rest position, making shapes independent of staging-mode deformations.
-  - **Direct Brush Editing**: Use the deform brush in a dedicated "Edit Mode" (pencil icon) to sculpt shapes directly on the canvas.
-  - **Live Cumulative Preview**: Real-time canvas updates as you blend multiple shapes together.
-- **Inline Help System**: Reusable `HelpIcon` components provide instant tooltips for complex parameters across the UI (Inspector, Timeline, Rigging Wizard, and Mode Toggles).
-
-### 🎬 Professional Timeline
-- **AE-Style Workflow**: Familiar keyframing system for transforms (X, Y, Rotation, Scale) and Mesh Vertices.
-- **Dynamic Defaults**: Includes **Auto Keyframe** (automatically create keyframes on property change) and **Loop Keyframes** (seamless looping between first and last keyframes) enabled by default.
-- **Multi-Clip Management**: Create multiple animation sequences (e.g., *Idle*, *Walk*, *Attack*) within a single project.
-- **Direct Vertex Keyframing**: "Warp" your illustrations by animating individual mesh vertices for organic motion.
-- **Shape Key Tracks**: Animate blend shape influences smoothly over time. Tracks support standard easing and automatic cleanup of redundant `mesh_verts` keys.
-- **Smooth Interpolation**: High-performance rendering loop with real-time pose blending.
-
-### 📤 Versatile Export
-- **PNG/WEBP/JPG Sequences**: High-performance frame-by-frame export with custom scale, FPS, and background options (Transparent/Solid/Grid).
-- **Single Frame Export**: Capture the current timeline state as a high-resolution image with a dedicated frame-index slider.
-- **Spine 4.0 JSON**: Industrial-grade export for game engines. Maps Stretchy Studio hierarchies, setup poses, and animation timelines (Translate, Rotate, Scale, Opacity) to the Spine 4.0 schema. Includes automatic image packing and technical coordinate mapping (Y-up conversion).
-
-### ⚡ Optimized Engine
-- **WebGL2 Renderer**: Custom rendering pipeline using VAOs, batching, and hierarchical matrix math for 60 FPS performance.
-- **Pose Separation**: Playback state is decoupled from the project model, ensuring a non-destructive animation workflow.
-- **Low Memory Footprint**: Efficient texture and vertex buffer management.
+- **🚀 启动应用**：[editor.stretchy.studio](https://editor.stretchy.studio)
+- **💬 Discord**：[加入我们的社区](https://discord.com/invite/zB6TrHTwAb)
+- **💻 GitHub**：[mangoLion/stretchystudio](https://github.com/mangoLion/stretchystudio)
+- **🌐 落地页**：[stretchy.studio](https://stretchy.studio)（或本地 `/landing/index.html`）
 
 ---
 
-## 🛠 Tech Stack
+## ✨ 核心功能
 
-- **Core**: [React](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand) + [Immer](https://immerjs.github.io/immer/)
-- **Rendering**: [WebGL2](https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext), [gl-matrix](http://glmatrix.net/)
-- **Mesh Engine**: [Delaunator](https://github.com/mapbox/delaunator) (Triangulation), Custom Contour Tracing
-- **IO**: [ag-psd](https://github.com/misonou/ag-psd) (PSD Parsing), [JSZip](https://stuk.github.io/jszip/) (Export)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/), [Radix UI](https://www.radix-ui.com/), [Lucide React](https://lucide.dev/)
+### 📂 智能导入
+- **PSD 图层提取**：完整支持多图层 PSD 文件，保留图层名称、顺序和不透明度。
+- **角色格式检测**：智能识别 23+ 种角色部件标签（例如 *eyebrow_L*、*topwear*、*footwear*）。自动将图层组织为结构化的 **Head**（含 **Eyes** 子组）、**Body**（含 **Upper/Lowerbody**）和 **Extras** 层级，同时保留原始 PSD 绘制顺序。
+- **按需网格（Mesh-on-Demand）**：从轻量级贴图开始；在需要时可选择启用低多边形网格生成以进行高级变形（默认值：Alpha Threshold 5、Smooth Passes 0）。
+
+### 📐 精确绑定
+- **层级变换**：具有父子变换继承的嵌套组结构。
+- **直观 Gizmo**：用于直接在画布上操作的世界空间移动和旋转手柄；动画时间轴上可旋转的骨骼弧线。
+- **3 步导入向导**：在手动（启发式）或 AI 驱动（DWPose）绑定之间选择，然后在提交前于画布上调整关节。
+- **骨架自动绑定**：两种骨架检测方法：
+  - **手动（启发式）**：从图层包围盒即时估算骨架 —— 无需下载模型。
+  - **DWPose ONNX**：针对 see-through PSD 角色的高精度全身姿态检测。
+- **关节调整**：全画布骨架叠加层，带可拖动的关节圆圈。在完成前随时可按 Back 按钮回退到上一个向导步骤。
+- **骨骼层级**：基于关节的骨骼作为组节点，使用 pivotX/Y 定位（root → torso → head → eyes；腿部；带肘/膝关节的手臂）。
+- **2D 虹膜触控板**：专用于直观虹膜/眼球移动的 2D 方形触控板 UI；最优地锚定在头部上方以避免遮挡面部。
+- **肢体弯曲（肘/膝）**：针对手臂和腿部的逼真 2D 顶点蒙皮。通过将顶点投影到骨骼轴上来自动计算骨骼权重。与直接旋转手柄无缝配合。
+- **自动虹膜裁剪**：高级的基于模板（stencil）的遮罩使虹膜保持在眼白范围内。智能 L/R 匹配通过名称后缀检测，开箱即用地处理拆分眼睛的角色。
+- **轴心校准**：精确的轴心放置，以实现自然的旋转和缩放。
+- **选择隔离**：当骨架处于激活状态*且*存在绑定时，选择和 Gizmo 会自动锁定/隐藏，以专注于骨骼关节设置。对于未绑定的项目，标准选择保持启用。
+- **基于 Alpha 的选择**：像素级精确的选择，对带贴图的四边形和复杂网格都能即时生效。
+- **形态键（混合变形）**：受 Blender 启发的顶点增量系统。创建多种网格变体（例如 “Mouth Open”、“Angry Eye”），并使用影响强度滑块（0.0–1.0）以叠加方式混合它们。
+  - **基于增量**：存储相对于静止位置的偏移，使形态独立于 Staging 模式的变形。
+  - **直接笔刷编辑**：在专门的 “Edit Mode”（铅笔图标）中使用变形笔刷，直接在画布上雕刻形态。
+  - **实时累积预览**：在混合多个形态时实时更新画布。
+- **行内帮助系统**：可复用的 `HelpIcon` 组件为整个 UI（Inspector、Timeline、Rigging Wizard 和 Mode Toggles）中的复杂参数提供即时工具提示。
+
+### 🎬 专业时间轴
+- **AE 风格工作流程**：熟悉的变换（X、Y、Rotation、Scale）和网格顶点关键帧系统。
+- **动态默认值**：默认启用 **Auto Keyframe**（属性变化时自动创建关键帧）和 **Loop Keyframes**（在首尾关键帧之间无缝循环）。
+- **多片段管理**：在单个项目内创建多个动画序列（例如 *Idle*、*Walk*、*Attack*）。
+- **直接顶点关键帧**：通过为单个网格顶点制作动画来“Warp”你的插画，实现有机运动。
+- **形态键轨道**：随时间平滑地动画化混合形态影响强度。轨道支持标准缓动以及自动清理冗余的 `mesh_verts` 关键帧。
+- **平滑插值**：高性能渲染循环，带实时姿态混合。
+
+### 📤 多样化导出
+- **PNG/WEBP/JPG 序列**：高性能的逐帧导出，支持自定义缩放、帧率和背景选项（Transparent/Solid/Grid）。
+- **单帧导出**：将当前时间轴状态捕获为高分辨率图像，并带专门的帧索引滑块。
+- **Spine 4.0 JSON**：面向游戏引擎的工业级导出。将 Stretchy Studio 的层级、设置姿态和动画时间轴（Translate、Rotate、Scale、Opacity）映射到 Spine 4.0 schema。包含自动图像打包和技术性坐标映射（Y-up 转换）。
+
+### ⚡ 优化的引擎
+- **WebGL2 渲染器**：使用 VAO、批处理和层级矩阵数学的自定义渲染管线，实现 60 FPS 性能。
+- **姿态分离**：播放状态与项目模型解耦，确保非破坏性的动画工作流程。
+- **低内存占用**：高效的贴图和顶点缓冲管理。
 
 ---
 
-## 🏗 Project Structure
+## 🛠 技术栈
+
+- **核心**：[React](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **状态管理**：[Zustand](https://github.com/pmndrs/zustand) + [Immer](https://immerjs.github.io/immer/)
+- **渲染**：[WebGL2](https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext)、[gl-matrix](http://glmatrix.net/)
+- **网格引擎**：[Delaunator](https://github.com/mapbox/delaunator)（三角剖分）、自定义轮廓追踪
+- **IO**：[ag-psd](https://github.com/misonou/ag-psd)（PSD 解析）、[JSZip](https://stuk.github.io/jszip/)（导出）
+- **样式**：[Tailwind CSS](https://tailwindcss.com/)、[Radix UI](https://www.radix-ui.com/)、[Lucide React](https://lucide.dev/)
+
+---
+
+## 🏗 项目结构
 
 ```bash
 src/
@@ -101,61 +101,61 @@ src/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 快速开始
 
-### Prerequisites
+### 前置条件
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [pnpm](https://pnpm.io/) (Recommended) or `npm`
+- [Node.js](https://nodejs.org/)（v18+）
+- [pnpm](https://pnpm.io/)（推荐）或 `npm`
 
-### Setup
+### 设置
 
-1. **Install dependencies**:
+1. **安装依赖**：
    ```bash
    pnpm install
    ```
 
-2. **Run the development server**:
+2. **运行开发服务器**：
    ```bash
    pnpm dev
    ```
 
-3. **Open the browser**:
-   Navigate to `http://localhost:5173`.
+3. **打开浏览器**：
+   访问 `http://localhost:5173`。
 
 ---
 
-## 🎨 Workflow Example
+## 🎨 工作流程示例
 
-### Static Character
-1. **Import**: Drag a PSD into the viewport.
-2. **Organize**: Use the Groups tab to parent layers and adjust pivot points.
-3. **Mesh**: Select a part, click "Generate Mesh", and adjust mesh settings as needed.
-4. **Animate**: Switch to "Animation" mode, create a new clip, and keyframe transforms + vertices.
-5. **Export**: (Coming Soon) Export as a packed spritesheet or PNG sequence.
+### 静态角色
+1. **导入**：将 PSD 拖入视口。
+2. **组织**：使用 Groups 标签页将图层设为父子关系并调整轴心点。
+3. **网格**：选择一个部件，点击 “Generate Mesh”，并按需调整网格设置。
+4. **动画**：切换到 “Animation” 模式，创建新片段，并为变换 + 顶点制作关键帧。
+5. **导出**：（即将推出）导出为打包的精灵表或 PNG 序列。
 
-### Rigged Character (See-Through PSD)
-Stretchy Studio is highly optimized for the [**See-Through**](https://github.com/shitagaki-lab/see-through) pipeline ([Paper](https://arxiv.org/abs/2602.03749)). It transforms a single anime illustration into a layered PSD, which Stretchy Studio can then auto-rig.
+### 已绑定角色（See-Through PSD）
+Stretchy Studio 针对 [**See-Through**](https://github.com/shitagaki-lab/see-through) 管线（[论文](https://arxiv.org/abs/2602.03749)）进行了高度优化。它将单张动漫插画转换为分层 PSD，Stretchy Studio 随后可对其自动绑定。
 
-#### How to get decomposed PSDs
-- **Recommended**: [Free Hugging Face Demo](https://huggingface.co/spaces/24yearsold/see-through-demo) (Quickest)
-- **Advanced**: [See-through Repository](https://github.com/shitagaki-lab/see-through) or [Windows WebUI](https://github.com/BeamManP/see-through-webui)
+#### 如何获取分解后的 PSD
+- **推荐**：[免费 Hugging Face Demo](https://huggingface.co/spaces/24yearsold/see-through-demo)（最快捷）
+- **进阶**：[See-through 仓库](https://github.com/shitagaki-lab/see-through) 或 [Windows WebUI](https://github.com/BeamManP/see-through-webui)
 
 > [!NOTE]
-> **Style Compatibility**: See-Through is specifically trained on **anime/VTuber** styles. Realistic styles may not decompose correctly.
+> **风格兼容性**：See-Through 专门针对 **动漫/VTuber** 风格训练。写实风格可能无法正确分解。
 
-1. **Import & Rig**: Drag a see-through PSD character → 3-step wizard opens:
-   - Choose rigging method: *Rig manually* (instant heuristic) or *Rig with DWPose* (AI-powered)
-   - Adjust joint positions on canvas if needed
-   - Click Finish to commit
-2. **Animate**: Switch to "Animation" mode, create clips, and keyframe bone rotations + vertex deforms.
-3. **Playback**: Bones drive limb bending via vertex skinning; smooth interpolation between keyframes.
-4. **Export**: Export as spritesheet
+1. **导入与绑定**：拖入 see-through PSD 角色 → 打开 3 步向导：
+   - 选择绑定方法：*Rig manually*（即时启发式）或 *Rig with DWPose*（AI 驱动）
+   - 按需在画布上调整关节位置
+   - 点击 Finish 提交
+2. **动画**：切换到 “Animation” 模式，创建片段，并为骨骼旋转 + 顶点变形制作关键帧。
+3. **播放**：骨骼通过顶点蒙皮驱动肢体弯曲；关键帧之间平滑插值。
+4. **导出**：导出为精灵表
 
 ---
 
-## 📜 Metadata
+## 📜 元数据
 
-- **Author**: Nguyen Phan
-- **License**: Private / Proprietary
-- **Version**: 0.6.0 (Spine Export Release)
+- **作者**：Nguyen Phan
+- **许可证**：私有 / 专有
+- **版本**：0.6.0（Spine Export Release）

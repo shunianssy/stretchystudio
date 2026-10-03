@@ -8,6 +8,7 @@
  *  4. Mesh settings: +V/-V buttons (only if mesh exists), collapsible sliders, Remesh button (part only)
  */
 import React, { useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from '@/i18n';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useAnimationStore } from '@/store/animationStore';
@@ -121,6 +122,7 @@ function NumericInput({ value, onChange, step = 1, precision = 1, className = ''
 /* ── Node details (part or group) ─────────────────────────────────────────── */
 
 function NodeDetails({ node }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const updateProject = useProjectStore(s => s.updateProject);
 
   const setOpacity = useCallback((v) => {
@@ -153,13 +155,13 @@ function NodeDetails({ node }) {
 
   return (
     <div className="space-y-1">
-      <SectionTitle>{node.type === 'group' ? 'Group' : 'Part'}</SectionTitle>
-      <Row label="Name">
+      <SectionTitle>{node.type === 'group' ? t('panels.inspector.group') : t('panels.inspector.part')}</SectionTitle>
+      <Row label={t('common.name')}>
         <span className="text-xs font-mono truncate max-w-[100px] text-right" title={node.name}>
           {node.name || node.id}
         </span>
       </Row>
-      <Row label="Visible">
+      <Row label={t('panels.inspector.visible')}>
         <Switch
           checked={node.visible !== false}
           onCheckedChange={setVisible}
@@ -167,7 +169,7 @@ function NodeDetails({ node }) {
         />
       </Row>
       <SliderRow
-        label="Opacity"
+        label={t('common.opacity')}
         value={Math.round((node.opacity ?? 1) * 100)}
         min={0} max={100}
         onChange={(v) => setOpacity(v / 100)}
@@ -179,6 +181,7 @@ function NodeDetails({ node }) {
 /* ── Transform panel ──────────────────────────────────────────────────────── */
 
 function TransformPanel({ node, allNodes }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const updateProject = useProjectStore(s => s.updateProject);
 
   const setTransformField = useCallback((field, value) => {
@@ -197,59 +200,59 @@ function TransformPanel({ node, allNodes }) {
     }
   }, [node.id, updateProject]);
 
-  const t = node.transform ?? { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 };
+  const tf = node.transform ?? { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 };
 
   return (
     <div className="space-y-1.5">
-      <SectionTitle>Transform</SectionTitle>
+      <SectionTitle>{t('panels.inspector.transform')}</SectionTitle>
 
       {/* Position */}
       <div className="flex items-center gap-1 py-0.5">
-        <Label className="text-xs text-muted-foreground w-8 shrink-0">Pos</Label>
+        <Label className="text-xs text-muted-foreground w-8 shrink-0">{t('panels.inspector.pos')}</Label>
         <div className="flex gap-1 flex-1 justify-end">
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">X</span>
-            <NumericInput value={t.x ?? 0} onChange={v => setTransformField('x', v)} step={1} precision={1} />
+            <NumericInput value={tf.x ?? 0} onChange={v => setTransformField('x', v)} step={1} precision={1} />
           </div>
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">Y</span>
-            <NumericInput value={t.y ?? 0} onChange={v => setTransformField('y', v)} step={1} precision={1} />
+            <NumericInput value={tf.y ?? 0} onChange={v => setTransformField('y', v)} step={1} precision={1} />
           </div>
         </div>
       </div>
 
       {/* Rotation */}
-      <Row label="Rotation °">
-        <NumericInput value={t.rotation ?? 0} onChange={v => setTransformField('rotation', v)} step={0.5} precision={1} />
+      <Row label={t('panels.inspector.rotation')}>
+        <NumericInput value={tf.rotation ?? 0} onChange={v => setTransformField('rotation', v)} step={0.5} precision={1} />
       </Row>
 
 
       {/* Scale */}
       <div className="flex items-center gap-1 py-0.5">
-        <Label className="text-xs text-muted-foreground w-8 shrink-0">Scale</Label>
+        <Label className="text-xs text-muted-foreground w-8 shrink-0">{t('common.scale')}</Label>
         <div className="flex gap-1 flex-1 justify-end">
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">X</span>
-            <NumericInput value={t.scaleX ?? 1} onChange={v => setTransformField('scaleX', v)} step={0.05} precision={2} />
+            <NumericInput value={tf.scaleX ?? 1} onChange={v => setTransformField('scaleX', v)} step={0.05} precision={2} />
           </div>
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">Y</span>
-            <NumericInput value={t.scaleY ?? 1} onChange={v => setTransformField('scaleY', v)} step={0.05} precision={2} />
+            <NumericInput value={tf.scaleY ?? 1} onChange={v => setTransformField('scaleY', v)} step={0.05} precision={2} />
           </div>
         </div>
       </div>
 
       {/* Pivot */}
       <div className="flex items-center gap-1 py-0.5">
-        <Label className="text-xs text-muted-foreground w-8 shrink-0">Pivot</Label>
+        <Label className="text-xs text-muted-foreground w-8 shrink-0">{t('panels.inspector.pivot')}</Label>
         <div className="flex gap-1 flex-1 justify-end">
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">X</span>
-            <NumericInput value={t.pivotX ?? 0} onChange={v => setTransformField('pivotX', v)} step={1} precision={1} />
+            <NumericInput value={tf.pivotX ?? 0} onChange={v => setTransformField('pivotX', v)} step={1} precision={1} />
           </div>
           <div className="flex items-center gap-0.5">
             <span className="text-[10px] text-muted-foreground/60">Y</span>
-            <NumericInput value={t.pivotY ?? 0} onChange={v => setTransformField('pivotY', v)} step={1} precision={1} />
+            <NumericInput value={tf.pivotY ?? 0} onChange={v => setTransformField('pivotY', v)} step={1} precision={1} />
           </div>
         </div>
       </div>
@@ -264,7 +267,7 @@ function TransformPanel({ node, allNodes }) {
           if (n) n.transform = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 };
         })}
       >
-        Reset Transform
+        {t('panels.inspector.resetTransform')}
       </Button>
       
       {/* Limb skinning warning */}
@@ -275,7 +278,7 @@ function TransformPanel({ node, allNodes }) {
         if (hasDependent) return null;
         return (
           <div className="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/30 text-xs leading-relaxed text-amber-500">
-            <span className="font-bold">⚠ Limb mesh required.</span> To enable rotation deformation: (1) Hide armature, (2) Select the limb layer, and (3) Click 'Remesh'.
+            <span className="font-bold">{t('panels.inspector.limbMeshRequiredBold')}</span> {t('panels.inspector.limbMeshRequiredRest')}
           </div>
         );
       })()}
@@ -286,6 +289,7 @@ function TransformPanel({ node, allNodes }) {
 /* ── Texture Panel ────────────────────────────────────────────────────────── */
 
 function TexturePanel({ node }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const updateProject = useProjectStore(s => s.updateProject);
   const textures = useProjectStore(s => s.project.textures);
   const fileInputRef = useRef(null);
@@ -345,7 +349,7 @@ function TexturePanel({ node }) {
 
   return (
     <div className="space-y-2">
-      <SectionTitle>Texture</SectionTitle>
+      <SectionTitle>{t('panels.inspector.texture')}</SectionTitle>
       <div className="grid grid-cols-2 gap-2">
         <Button 
           size="sm" 
@@ -353,7 +357,7 @@ function TexturePanel({ node }) {
           className="h-7 text-xs"
           onClick={handleExport}
         >
-          Export Texture
+          {t('panels.inspector.exportTexture')}
         </Button>
         <Button 
           size="sm" 
@@ -361,7 +365,7 @@ function TexturePanel({ node }) {
           className="h-7 text-xs"
           onClick={() => fileInputRef.current?.click()}
         >
-          Replace Texture
+          {t('panels.inspector.replaceTexture')}
         </Button>
       </div>
       <input
@@ -373,7 +377,7 @@ function TexturePanel({ node }) {
       />
       {node.mesh && (
         <p className="text-[10px] text-muted-foreground leading-tight italic">
-          Tip: You may need to click 'Remesh' if the new image has different dimensions.
+          {t('panels.inspector.textureTip')}
         </p>
       )}
     </div>
@@ -383,6 +387,7 @@ function TexturePanel({ node }) {
 /* ── Mesh settings ────────────────────────────────────────────────────────── */
 
 function MeshPanel({ node, onRemesh, onDeleteMesh }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const [expanded, setExpanded] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const meshDefaults = useEditorStore(s => s.meshDefaults);
@@ -426,7 +431,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <SectionTitle>Mesh</SectionTitle>
+        <SectionTitle>{t('panels.inspector.mesh')}</SectionTitle>
         <div className="flex items-center gap-1">
           {node.mesh && (
             <Button
@@ -435,7 +440,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
               className="h-6 px-2 text-[10px]"
               onClick={() => setConfirmDelete(true)}
             >
-              Delete Mesh
+              {t('panels.inspector.deleteMesh')}
             </Button>
           )}
           {!node.mesh && !node.meshOpts && (
@@ -443,7 +448,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
               onClick={enablePerPart}
               className="text-[10px] text-primary underline-offset-2 hover:underline"
             >
-              override
+              {t('panels.inspector.override')}
             </button>
           )}
         </div>
@@ -453,10 +458,10 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
       {node.mesh && (
         <div className="space-y-2">
           <div className="space-y-1">
-            <Row label="Vertices">
+            <Row label={t('panels.inspector.vertices')}>
               <span className="text-xs tabular-nums">{node.mesh?.vertices?.length ?? '—'}</span>
             </Row>
-            <Row label="Triangles">
+            <Row label={t('panels.inspector.triangles')}>
               <span className="text-xs tabular-nums">{node.mesh?.triangles?.length ?? '—'}</span>
             </Row>
           </div>
@@ -466,7 +471,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
             className="w-full h-7 text-xs"
             onClick={() => setMeshEditMode(!meshEditMode)}
           >
-            {meshEditMode ? 'Exit Edit Mode' : 'Edit Mesh'}
+            {meshEditMode ? t('panels.inspector.exitEditMode') : t('panels.inspector.editMesh')}
           </Button>
           {meshEditMode && (
             <div className="space-y-1.5">
@@ -475,25 +480,25 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
                   className={`flex-1 py-1 ${meshSubMode === 'deform' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
                   onClick={() => setMeshSubMode('deform')}
                 >
-                  Deform
+                  {t('panels.inspector.deform')}
                 </button>
                 <button
                   className={`flex-1 py-1 border-l border-border ${meshSubMode === 'adjust' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
                   onClick={() => setMeshSubMode('adjust')}
                 >
-                  Adjust
+                  {t('panels.inspector.adjust')}
                 </button>
               </div>
               {meshSubMode === 'deform' && (
                 <div className="space-y-2 pt-0.5">
                   <SliderRow
-                    label="Brush Size"
+                    label={t('panels.inspector.brushSize')}
                     value={brushSize}
                     min={5} max={300} step={1}
                     onChange={(v) => setBrush({ brushSize: v })}
                   />
                   <SliderRow
-                    label="Hardness"
+                    label={t('panels.inspector.hardness')}
                     value={Math.round(brushHardness * 100)}
                     min={0} max={100} step={1}
                     onChange={(v) => setBrush({ brushHardness: v / 100 })}
@@ -508,7 +513,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
                     className="flex-1 h-7 text-xs"
                     onClick={() => setToolMode(toolMode === 'add_vertex' ? 'select' : 'add_vertex')}
                   >
-                    + Vertex
+                    {t('panels.inspector.addVertex')}
                   </Button>
                   <Button
                     size="sm"
@@ -516,7 +521,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
                     className="flex-1 h-7 text-xs"
                     onClick={() => setToolMode(toolMode === 'remove_vertex' ? 'select' : 'remove_vertex')}
                   >
-                    − Vertex
+                    {t('panels.inspector.removeVertex')}
                   </Button>
                 </div>
               )}
@@ -527,7 +532,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
 
       {!node.mesh && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          No mesh. Generate one to enable vertex editing and mesh warp animation.
+          {t('panels.inspector.noMesh')}
         </p>
       )}
 
@@ -540,7 +545,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
         if (!parentNode || !LIMB_ROLES.has(parentNode.boneRole)) return null;
         return (
           <p className="text-xs leading-relaxed rounded px-2 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400">
-            ⚠ Mesh was generated before rigging. Click <strong>Remesh</strong> to enable elbow/knee deformation.
+            {t('panels.inspector.meshBeforeRiggingPre')}<strong>{t('panels.inspector.remesh')}</strong>{t('panels.inspector.meshBeforeRiggingPost')}
           </p>
         );
       })()}
@@ -552,44 +557,44 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground py-0.5"
         >
           <span>{expanded ? '▼' : '▶'}</span>
-          <span className="font-medium">Settings</span>
+          <span className="font-medium">{t('panels.inspector.settings')}</span>
         </button>
         {expanded && (
           <div className="space-y-2 pl-2 border-l border-border/50">
             <SliderRow
-              label="Alpha Threshold"
+              label={t('panels.inspector.alphaThreshold')}
               value={opts.alphaThreshold}
               min={1} max={254}
               onChange={(v) => setOpt('alphaThreshold', v)}
-              help="Pixel opacity threshold (0–255). Higher = stricter boundary detection."
+              help={t('panels.inspector.alphaThresholdHelp')}
             />
             <SliderRow
-              label="Smooth Passes"
+              label={t('panels.inspector.smoothPasses')}
               value={opts.smoothPasses}
               min={0} max={10}
               onChange={(v) => setOpt('smoothPasses', v)}
-              help="Laplacian smoothing iterations on the contour. Smooths jagged edges."
+              help={t('panels.inspector.smoothPassesHelp')}
             />
             <SliderRow
-              label="Grid Spacing"
+              label={t('panels.inspector.gridSpacing')}
               value={opts.gridSpacing}
               min={6} max={100}
               onChange={(v) => setOpt('gridSpacing', v)}
-              help="Distance between interior sample points. Lower = more vertices, higher detail."
+              help={t('panels.inspector.gridSpacingHelp')}
             />
             <SliderRow
-              label="Edge Padding"
+              label={t('panels.inspector.edgePadding')}
               value={opts.edgePadding}
               min={0} max={40}
               onChange={(v) => setOpt('edgePadding', v)}
-              help="Minimum distance interior points must be from the boundary. Prevents clustering."
+              help={t('panels.inspector.edgePaddingHelp')}
             />
             <SliderRow
-              label="Edge Points"
+              label={t('panels.inspector.edgePoints')}
               value={opts.numEdgePoints}
               min={8} max={300}
               onChange={(v) => setOpt('numEdgePoints', v)}
-              help="Number of points sampled along the contour. More = smoother outline."
+              help={t('panels.inspector.edgePointsHelp')}
             />
           </div>
         )}
@@ -600,22 +605,22 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
         className="w-full h-7 text-xs mt-1"
         onClick={() => onRemesh(node.id, opts)}
       >
-        {node.mesh ? 'Remesh' : 'Generate Mesh'}
+        {node.mesh ? t('panels.inspector.remesh') : t('panels.inspector.generateMesh')}
       </Button>
 
       {/* Delete mesh confirmation dialog */}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
-          <DialogTitle>Delete Mesh?</DialogTitle>
+          <DialogTitle>{t('panels.inspector.confirmDeleteMeshTitle')}</DialogTitle>
           <DialogDescription>
-            This will permanently delete the mesh for "{node.name || node.id}". This action cannot be undone.
+            {t('panels.inspector.confirmDeleteMeshDesc', { name: node.name || node.id })}
           </DialogDescription>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDeleteMesh}>
-              Delete Mesh
+              {t('panels.inspector.deleteMesh')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -627,6 +632,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
 /* ── Shape Keys Panel ─────────────────────────────────────────────────────── */
 
 function ShapeKeysPanel({ node }) {
+  const { t } = useTranslation(); // 组件内订阅语言
   const updateProject = useProjectStore(s => s.updateProject);
   const createBlendShape = useProjectStore(s => s.createBlendShape);
   const deleteBlendShape = useProjectStore(s => s.deleteBlendShape);
@@ -690,10 +696,10 @@ function ShapeKeysPanel({ node }) {
     const editingShape = shapes.find(s => s.id === activeBlendShapeId);
     return (
       <div className="space-y-2">
-        <SectionTitle>Shape Keys</SectionTitle>
+        <SectionTitle>{t('panels.inspector.shapeKeys')}</SectionTitle>
         <div className="flex items-center justify-between rounded bg-primary/10 border border-primary/30 px-2 py-1.5 gap-2">
           <span className="text-xs text-primary font-medium">
-            Editing: {editingShape?.name ?? '...'}
+            {t('panels.inspector.editing', { name: editingShape?.name ?? '...' })}
           </span>
           <Button
             size="sm"
@@ -701,7 +707,7 @@ function ShapeKeysPanel({ node }) {
             className="h-6 text-[10px] shrink-0"
             onClick={handleExitEditMode}
           >
-            Done
+            {t('common.done')}
           </Button>
         </div>
       </div>
@@ -711,13 +717,13 @@ function ShapeKeysPanel({ node }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <SectionTitle>Shape Keys</SectionTitle>
+        <SectionTitle>{t('panels.inspector.shapeKeys')}</SectionTitle>
         <Button
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0 text-sm shrink-0"
           onClick={handleAddShape}
-          title="Add shape key"
+          title={t('panels.inspector.addShapeKey')}
         >
           +
         </Button>
@@ -725,7 +731,7 @@ function ShapeKeysPanel({ node }) {
 
       {/* Basis row — always at top, read-only */}
       <div className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground">
-        <span className="flex-1">Basis</span>
+        <span className="flex-1">{t('panels.inspector.basis')}</span>
         <span className="w-14"></span>
       </div>
 
@@ -768,7 +774,7 @@ function ShapeKeysPanel({ node }) {
             <button
               className="text-muted-foreground hover:text-primary transition-colors p-0.5 shrink-0"
               onClick={() => handleEnterEditMode(shape.id)}
-              title="Edit shape"
+              title={t('panels.inspector.editShape')}
             >
               ✎
             </button>
@@ -777,7 +783,7 @@ function ShapeKeysPanel({ node }) {
             <button
               className="text-muted-foreground hover:text-destructive transition-colors p-0.5 shrink-0"
               onClick={() => handleDeleteShape(shape.id)}
-              title="Delete shape"
+              title={t('panels.inspector.deleteShape')}
             >
               ×
             </button>
@@ -787,7 +793,7 @@ function ShapeKeysPanel({ node }) {
 
       {shapes.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-2">
-          No shape keys. Click + to add one.
+          {t('panels.inspector.noShapeKeys')}
         </p>
       )}
     </div>
@@ -797,6 +803,7 @@ function ShapeKeysPanel({ node }) {
 /* ── Root Inspector ───────────────────────────────────────────────────────── */
 
 export function Inspector({ onRemesh, onDeleteMesh }) {
+  const { t } = useTranslation(); // 组件顶层订阅语言
   const selection = useEditorStore(s => s.selection);
   const editorMode = useEditorStore(s => s.editorMode);
   const nodes = useProjectStore(s => s.project.nodes);
@@ -873,7 +880,7 @@ export function Inspector({ onRemesh, onDeleteMesh }) {
         </>
       ) : (
         <p className="text-xs text-muted-foreground text-center mt-4">
-          Select a layer to inspect it.
+          {t('panels.inspector.selectLayer')}
         </p>
       )}
     </div>

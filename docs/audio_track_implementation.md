@@ -1,26 +1,26 @@
-# Audio Track Implementation
+# 音频轨道实现
 
-## Overview
+## 概述
 
-Audio tracks allow users to add background music or sound effects to animations in Stretchy Studio. Audio can be trimmed, positioned on the timeline, and synced precisely with animation playback.
+音频轨道允许用户在 Stretchy Studio 中为动画添加背景音乐或音效。音频可以裁剪、在时间轴上定位，并与动画播放精确同步。
 
-## Features
+## 功能
 
-- ✅ Add multiple audio tracks per animation
-- ✅ Upload audio files (MP3, WAV, etc.)
-- ✅ Trim audio from start/end via drag handles
-- ✅ Move audio clips along the timeline
-- ✅ Precise playback sync with animation
-- ✅ Audio modal for detailed parameter editing
-- ✅ Automatic clipping to timeline duration
-- ✅ Loop support (audio restarts on animation loop)
-- ✅ Persist audio in `.stretch` project files
+- ✅ 每个动画可添加多条音频轨道
+- ✅ 上传音频文件（MP3、WAV 等）
+- ✅ 通过拖动把手从起点/终点裁剪音频
+- ✅ 沿时间轴移动音频片段
+- ✅ 与动画精确同步播放
+- ✅ 用于详细参数编辑的音频弹窗
+- ✅ 自动裁剪到时间轴时长
+- ✅ 循环支持（动画循环时音频重新开始）
+- ✅ 将音频持久化到 `.stretch` 项目文件中
 
-## Architecture
+## 架构
 
-### Data Model
+### 数据模型
 
-Audio tracks are stored in the animation object (`projectStore`):
+音频轨道存储在动画对象（`projectStore`）中：
 
 ```javascript
 animation {
@@ -42,113 +42,113 @@ animation {
 }
 ```
 
-### Key Components
+### 关键组件
 
-#### `useAudioSync(animation, animStore)` — Web Audio API Playback Hook
+#### `useAudioSync(animation, animStore)` —— Web Audio API 播放 Hook
 
-Located in `TimelinePanel.jsx` lines ~114–210.
+位于 `TimelinePanel.jsx` 第 ~114–210 行。
 
-**Design Principles:**
-- Effect does NOT watch `currentTime` (fires every rAF frame) → avoids OOM from repeated fetch/decode
-- Instead, uses refs (`animationRef`, `currentTimeRef`) to always read fresh values without re-triggering
-- Only watches `isPlaying`, `activeAnimationId`, and `loopCount` (stable, discrete changes)
+**设计原则：**
+- Effect 不监听 `currentTime`（会每帧 rAF 触发）→ 避免重复 fetch/decode 导致内存溢出（OOM）
+- 转而使用 ref（`animationRef`、`currentTimeRef`）来始终读取最新值而不重新触发
+- 只监听 `isPlaying`、`activeAnimationId` 和 `loopCount`（稳定、离散的变化）
 
-**Workflow:**
-1. **Decode effect** — watches `trackSourceKey` (string of `id:sourceUrl` pairs)
-   - Fetches audio file once per track
-   - Decodes to AudioBuffer via Web Audio API
-   - Caches in `buffersRef` Map
+**工作流程：**
+1. **解码 effect** —— 监听 `trackSourceKey`（由 `id:sourceUrl` 对组成的字符串）
+   - 每条轨道只 fetch 一次音频文件
+   - 通过 Web Audio API 解码为 AudioBuffer
+   - 缓存在 `buffersRef` Map 中
 
-2. **Play/stop effect** — watches `isPlaying` + `activeAnimationId` + `loopCount`
-   - When `isPlaying` turns true: starts AudioBufferSourceNodes from current playhead position
-   - When `isPlaying` turns false: stops all sources
-   - Reads `currentTime` via ref at the moment play starts (not reactive)
-   - Uses Web Audio API's `source.start(when, offset, duration)` scheduling for precise timing
-   - Handles clips that start in the future with `delaySec` parameter
+2. **播放/停止 effect** —— 监听 `isPlaying` + `activeAnimationId` + `loopCount`
+   - 当 `isPlaying` 变为 true：从当前播放头位置启动 AudioBufferSourceNode
+   - 当 `isPlaying` 变为 false：停止所有 source
+   - 在播放开始的那一刻通过 ref 读取 `currentTime`（非响应式）
+   - 使用 Web Audio API 的 `source.start(when, offset, duration)` 调度来实现精确计时
+   - 通过 `delaySec` 参数处理未来才开始的片段
 
-**Offset Calculation:**
+**偏移计算：**
 ```javascript
 const offsetInAudioMs = Math.max(0, audioStartMs + Math.max(0, nowMs - timelineStartMs));
 ```
-- `audioStartMs`: trim point in audio file
-- `nowMs - timelineStartMs`: how far into the clip the playhead is
-- Result: exact position in audio file to start playback
+- `audioStartMs`：音频文件中的裁剪点
+- `nowMs - timelineStartMs`：播放头已进入片段的距离
+- 结果：音频文件中开始播放的精确位置
 
-**Loop Handling:**
-- `animationStore.loopCount` increments on every loop (in `tick()` function)
-- Increment detected by effect → triggers `startAll()` again
-- Audio sources naturally end after their `duration`, so no cleanup needed
+**循环处理：**
+- `animationStore.loopCount` 在每次循环时递增（在 `tick()` 函数中）
+- Effect 检测到递增 → 再次触发 `startAll()`
+- 音频源会在其 `duration` 之后自然结束，因此无需清理
 
-#### `AudioTrackRow` — Timeline UI for One Track
+#### `AudioTrackRow` —— 单条轨道的时间轴 UI
 
-Located in `TimelinePanel.jsx` lines ~264–560.
+位于 `TimelinePanel.jsx` 第 ~264–560 行。
 
-**Elements:**
-- **Label column**: track name + ⚙️ settings button + ✕ delete button
-- **Track area** (right of label):
-  - If no audio: "Upload audio" button with hidden file input
-  - If audio: colored bar showing clip boundaries with drag handles
+**元素：**
+- **标签列**：轨道名 + ⚙️ 设置按钮 + ✕ 删除按钮
+- **轨道区域**（标签右侧）：
+  - 若无音频：“Upload audio” 按钮 + 隐藏的文件输入
+  - 若有音频：带拖动把手的彩色条，显示片段边界
 
-**Drag Handlers:**
-- **Left handle**: trim from start of audio
-  - Both `audioStartMs` and `timelineStartMs` move together (right edge stays fixed)
-  - Clamped: `audioStartMs ≥ 0`, `timelineStartMs ≥ 0`
-- **Right handle**: trim from end of audio
-  - Only `audioEndMs` changes
-  - Clamped: `audioStartMs + 100 ≤ audioEndMs ≤ audioDurationMs`
-- **Body**: move entire clip along timeline
-  - Only `timelineStartMs` changes
-  - Uses `xToFrame()` + `frameToMs()` for correct pixel→ms conversion
+**拖动处理器：**
+- **左手柄**：从音频起点裁剪
+  - `audioStartMs` 和 `timelineStartMs` 一起移动（右边缘保持固定）
+  - 钳制：`audioStartMs ≥ 0`、`timelineStartMs ≥ 0`
+- **右手柄**：从音频终点裁剪
+  - 仅 `audioEndMs` 变化
+  - 钳制：`audioStartMs + 100 ≤ audioEndMs ≤ audioDurationMs`
+- **主体**：沿时间轴移动整个片段
+  - 仅 `timelineStartMs` 变化
+  - 使用 `xToFrame()` + `frameToMs()` 进行正确的像素→毫秒换算
 
-**Audio Upload:**
-- User clicks button → file input opens
-- On select: decode audio via AudioContext to get duration
-- Auto-clips `audioEndMs` to timeline duration if longer
-- Sets `sourceUrl` (blob URL) and `audioDurationMs`
+**音频上传：**
+- 用户点击按钮 → 打开文件输入
+- 选择后：通过 AudioContext 解码音频以获取时长
+- 若音频长于时间轴时长，则自动将 `audioEndMs` 裁剪至时间轴时长
+- 设置 `sourceUrl`（blob URL）和 `audioDurationMs`
 
-#### `AudioTrackModal` — Parameter Editor
+#### `AudioTrackModal` —— 参数编辑器
 
-Located in `TimelinePanel.jsx` lines ~224–263.
+位于 `TimelinePanel.jsx` 第 ~224–263 行。
 
-Uses shadcn's `Dialog` component for polished UI.
+使用 shadcn 的 `Dialog` 组件以呈现精致 UI。
 
-**Parameters:**
-- **Timeline Start** (ms): Where on the animation timeline the audio begins
-- **Audio Start Trim** (ms): Skip this many ms from the start of the audio file
-- **Play Duration** (ms): How long to play after trimming
+**参数：**
+- **Timeline Start**（ms）：音频在动画时间轴上开始的位置
+- **Audio Start Trim**（ms）：从音频文件开头跳过的毫秒数
+- **Play Duration**（ms）：裁剪后播放的时长
 
-Includes sliders + number inputs for precision, and live info display.
+包含滑块 + 数字输入以实现精确控制，并带有实时信息显示。
 
-### Serialization
+### 序列化
 
-#### Save (`projectFile.js`)
+#### 保存（`projectFile.js`）
 
-1. Create `audios/` folder in ZIP (parallel to `textures/`)
-2. For each audio track with `sourceUrl`:
-   - Fetch blob from URL
-   - Extract extension from `mimeType` (e.g. `'audio/mp3'` → `'mp3'`)
-   - Store as `audios/{trackId}.{ext}`
-   - Replace `sourceUrl` with path in serialized JSON
+1. 在 ZIP 中创建 `audios/` 文件夹（与 `textures/` 平级）
+2. 对于每条带 `sourceUrl` 的音频轨道：
+   - 从 URL fetch blob
+   - 从 `mimeType` 提取扩展名（例如 `'audio/mp3'` → `'mp3'`）
+   - 存储为 `audios/{trackId}.{ext}`
+   - 在序列化 JSON 中将 `sourceUrl` 替换为路径
 
-#### Load (`projectFile.js`)
+#### 载入（`projectFile.js`）
 
-1. After loading project JSON
-2. For each animation's audio tracks with a `source` path:
-   - Extract blob from ZIP
-   - Create blob URL via `URL.createObjectURL()`
-   - Restore as `sourceUrl`
-   - Delete the `source` field
+1. 载入项目 JSON 之后
+2. 对于每个动画中带 `source` 路径的音频轨道：
+   - 从 ZIP 提取 blob
+   - 通过 `URL.createObjectURL()` 创建 blob URL
+   - 还原为 `sourceUrl`
+   - 删除 `source` 字段
 
-## Implementation Details
+## 实现细节
 
-### Animation Store Changes
+### 动画 Store 变更
 
-**New field:**
+**新字段：**
 ```javascript
 loopCount: 0,  // increments in tick() on each loop
 ```
 
-**Modified `tick()` function:**
+**修改后的 `tick()` 函数：**
 ```javascript
 if (newTime >= endMs) {
   if (s.loop) {
@@ -159,15 +159,15 @@ if (newTime >= endMs) {
 set({ ..., loopCount });
 ```
 
-**Reset on seek/stop:**
+**seek/stop 时重置：**
 ```javascript
 seekFrame: () => set({ ..., loopCount: 0 }),
 stop: () => set({ ..., loopCount: 0 }),
 ```
 
-### Drag Delta Calculation
+### 拖动增量计算
 
-Uses `xToFrame()` (existing timeline function) to convert pixel positions to frames:
+使用 `xToFrame()`（现有的时间轴函数）将像素位置转换为帧：
 ```javascript
 const startFrame = xToFrame(e.clientX);        // Frame at drag start
 const currentFrame = xToFrame(ev.clientX);     // Frame at current mouse
@@ -175,51 +175,51 @@ const frameDelta = currentFrame - startFrame;  // Frames moved
 const deltaMs = frameToMs(frameDelta, fps);    // Convert to milliseconds
 ```
 
-This ensures micro-drags produce micro-adjustments (not exaggerated movement).
+这确保微小的拖动产生微小的调整（而非夸张的移动）。
 
-### Preventing Playhead Interference
+### 防止播放头干扰
 
-All audio track drag handlers call `e.stopPropagation()` to prevent the track area's `onPointerDown` handler from seeking the playhead.
+所有音频轨道拖动处理器都会调用 `e.stopPropagation()`，以防止轨道区域的 `onPointerDown` 处理器对播放头进行跳转。
 
-## Known Limitations
+## 已知局限
 
-1. **No waveform display** — colored bar only; no visual representation of audio content
-2. **Seek-while-playing not perfect** — audio doesn't automatically restart if timeline is dragged while playing
-3. **No audio level/volume controls** — always plays at full volume via `AudioContext.destination`
-4. **Single output destination** — all audio mixed to mono output (no panning/effects)
-5. **No audio preview** — can't preview audio before entering play mode
+1. **无波形显示** —— 仅有彩色条；没有音频内容的可视化表示
+2. **播放中跳转不完美** —— 若在播放时拖动时间轴，音频不会自动重新开始
+3. **无音频电平/音量控制** —— 始终通过 `AudioContext.destination` 以满音量播放
+4. **单一输出目标** —— 所有音频混合到单声道输出（无声像/效果）
+5. **无音频预览** —— 在进入播放模式前无法预览音频
 
-## Future Improvements
+## 未来改进
 
-- [ ] Waveform visualization in the audio bar
-- [ ] Volume slider per track
-- [ ] Pan controls (left/right stereo)
-- [ ] Audio effects (fade in/out)
-- [ ] Seek-while-playing sync
-- [ ] Multiple output buses (post-processing)
-- [ ] Audio scrubbing (hear audio while dragging playhead)
-- [ ] Compressor/normalizer for consistent loudness
+- [ ] 在音频条中显示波形可视化
+- [ ] 每条轨道的音量滑块
+- [ ] 声像控制（左/右立体声）
+- [ ] 音频效果（淡入/淡出）
+- [ ] 播放中跳转同步
+- [ ] 多输出总线（后处理）
+- [ ] 音频刮擦（拖动播放头时听到音频）
+- [ ] 压缩器/标准化器以实现一致的响度
 
-## Testing Checklist
+## 测试清单
 
-- [ ] Upload audio file, verify it appears in track
-- [ ] Drag left/right handles, verify clip trims correctly
-- [ ] Drag audio bar body, verify it moves without drifting
-- [ ] Open settings modal, adjust parameters with sliders and number inputs
-- [ ] Play animation, verify audio plays in sync
-- [ ] Pause during playback, audio stops immediately
-- [ ] Seek to different frame, audio syncs correctly
-- [ ] Animation loops, audio restarts from beginning
-- [ ] Save project, reload, audio persists
-- [ ] Audio longer than timeline, verify auto-clipped on upload
-- [ ] Multiple audio tracks play simultaneously
-- [ ] Delete audio track, verify removed from timeline
+- [ ] 上传音频文件，验证其出现在轨道中
+- [ ] 拖动左/右手柄，验证片段正确裁剪
+- [ ] 拖动音频条主体，验证其移动且不发生漂移
+- [ ] 打开设置弹窗，使用滑块和数字输入调整参数
+- [ ] 播放动画，验证音频同步播放
+- [ ] 播放中暂停，音频立即停止
+- [ ] 跳转到不同帧，音频正确同步
+- [ ] 动画循环，音频从头重新开始
+- [ ] 保存项目、重新载入，音频持久化
+- [ ] 音频长于时间轴，验证上传时自动裁剪
+- [ ] 多条音频轨道同时播放
+- [ ] 删除音频轨道，验证其从时间轴移除
 
-## File References
+## 文件引用
 
-- **Core implementation**: `src/components/timeline/TimelinePanel.jsx` (lines 1–1800)
-- **Playback hook**: `src/components/timeline/TimelinePanel.jsx:useAudioSync` (lines ~114–210)
-- **Audio track row**: `src/components/timeline/TimelinePanel.jsx:AudioTrackRow` (lines ~264–560)
-- **Audio settings modal**: `src/components/timeline/TimelinePanel.jsx:AudioTrackModal` (lines ~224–263)
-- **Store changes**: `src/store/animationStore.js` and `src/store/projectStore.js`
-- **Serialization**: `src/io/projectFile.js` (saveProject, loadProject)
+- **核心实现**：`src/components/timeline/TimelinePanel.jsx`（第 1–1800 行）
+- **播放 hook**：`src/components/timeline/TimelinePanel.jsx:useAudioSync`（第 ~114–210 行）
+- **音频轨道行**：`src/components/timeline/TimelinePanel.jsx:AudioTrackRow`（第 ~264–560 行）
+- **音频设置弹窗**：`src/components/timeline/TimelinePanel.jsx:AudioTrackModal`（第 ~224–263 行）
+- **Store 变更**：`src/store/animationStore.js` 和 `src/store/projectStore.js`
+- **序列化**：`src/io/projectFile.js`（saveProject, loadProject）

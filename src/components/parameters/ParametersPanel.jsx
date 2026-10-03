@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '@/i18n';
 import { useProjectStore } from '@/store/projectStore';
 import { useParameterStore } from '@/store/parameterStore';
 import { Slider } from '@/components/ui/slider';
@@ -15,6 +16,7 @@ import { Plus, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
  * or changing any other animatable property in real-time.
  */
 export function ParametersPanel() {
+  const { t } = useTranslation(); // 组件顶层订阅语言
   const parameters = useProjectStore(s => s.project.parameters);
   const animations  = useProjectStore(s => s.project.animations);
   const nodes       = useProjectStore(s => s.project.nodes);
@@ -37,13 +39,13 @@ export function ParametersPanel() {
       {/* Header */}
       <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between bg-muted/30">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Parameters
+          {t('panels.parameters.title')}
         </h2>
         <Button
           variant="ghost"
           size="icon"
           className="h-5 w-5"
-          title="Add parameter"
+          title={t('panels.parameters.addParameter')}
           onClick={() => createParameter()}
         >
           <Plus className="h-3 w-3" />
@@ -53,7 +55,7 @@ export function ParametersPanel() {
       <div className="overflow-y-auto flex-1">
         {parameters.length === 0 && (
           <p className="px-3 py-3 text-xs text-muted-foreground italic">
-            No parameters. Press + to add one.
+            {t('panels.parameters.empty')}
           </p>
         )}
 
@@ -85,8 +87,8 @@ export function ParametersPanel() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-4 w-4 opacity-0 group-hover:opacity-100 shrink-0"
-                  title="Delete parameter"
+                  className="h-4 w-4 text-muted-foreground hover:text-destructive shrink-0"
+                  title={t('panels.parameters.deleteParameter')}
                   onClick={() => deleteParameter(param.id)}
                 >
                   <Trash2 className="h-2.5 w-2.5" />
@@ -110,7 +112,7 @@ export function ParametersPanel() {
                 <div className="px-3 pb-3 space-y-2 bg-muted/10 border-t border-border/50">
                   {/* Name field */}
                   <div className="flex items-center gap-2 pt-2">
-                    <span className="text-xs text-muted-foreground w-8 shrink-0">Name</span>
+                    <span className="text-xs text-muted-foreground w-8 shrink-0">{t('common.name')}</span>
                     <Input
                       className="h-6 text-xs flex-1"
                       value={param.name}
@@ -120,7 +122,7 @@ export function ParametersPanel() {
 
                   {/* ID (read-only) */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-8 shrink-0">ID</span>
+                    <span className="text-xs text-muted-foreground w-8 shrink-0">{t('panels.parameters.id')}</span>
                     <Input
                       className="h-6 text-xs flex-1 font-mono"
                       value={param.id}
@@ -130,14 +132,14 @@ export function ParametersPanel() {
 
                   {/* Min / Max */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground w-8 shrink-0">Min</span>
+                    <span className="text-xs text-muted-foreground w-8 shrink-0">{t('panels.parameters.min')}</span>
                     <Input
                       type="number"
                       className="h-6 text-xs w-16"
                       value={param.min ?? -1}
                       onChange={e => updateParameter(param.id, { min: Number(e.target.value) })}
                     />
-                    <span className="text-xs text-muted-foreground ml-1">Max</span>
+                    <span className="text-xs text-muted-foreground ml-1">{t('panels.parameters.max')}</span>
                     <Input
                       type="number"
                       className="h-6 text-xs w-16"
@@ -148,7 +150,7 @@ export function ParametersPanel() {
                       variant="outline"
                       size="sm"
                       className="h-6 text-xs px-2 ml-auto"
-                      title="Reset to default"
+                      title={t('panels.parameters.resetToDefault')}
                       onClick={() => setParameterValue(param.id, param.default ?? 0)}
                     >
                       ↺
@@ -158,14 +160,14 @@ export function ParametersPanel() {
                   {/* Bindings list */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Track bindings</span>
+                      <span className="text-xs text-muted-foreground">{t('panels.parameters.trackBindings')}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-5 text-xs px-1.5 gap-1"
                         onClick={() => setAddingBinding(param.id)}
                       >
-                        <Link className="h-2.5 w-2.5" /> Add
+                        <Link className="h-2.5 w-2.5" /> {t('common.add')}
                       </Button>
                     </div>
 
@@ -214,6 +216,7 @@ export function ParametersPanel() {
 
 /** Inline form for adding a new track binding to a parameter. */
 function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
+  const { t } = useTranslation(); // 子组件内单独订阅语言
   const [animId,   setAnimId]   = React.useState(animations[0]?.id ?? '');
   const [property, setProperty] = React.useState('mesh_verts');
   const [nodeId,   setNodeId]   = React.useState('');
@@ -236,7 +239,7 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
         value={animId}
         onChange={e => setAnimId(e.target.value)}
       >
-        {animations.length === 0 && <option value="">— no animations —</option>}
+        {animations.length === 0 && <option value="">{t('panels.parameters.noAnimations')}</option>}
         {animations.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
 
@@ -246,13 +249,13 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
         value={property}
         onChange={e => { setProperty(e.target.value); setNodeId(''); }}
       >
-        <option value="mesh_verts">Mesh / warp deform (mesh_verts)</option>
-        <option value="rotation">Group rotation</option>
-        <option value="opacity">Opacity</option>
-        <option value="x">Position X</option>
-        <option value="y">Position Y</option>
-        <option value="scaleX">Scale X</option>
-        <option value="scaleY">Scale Y</option>
+        <option value="mesh_verts">{t('panels.parameters.propMeshVerts')}</option>
+        <option value="rotation">{t('panels.parameters.propRotation')}</option>
+        <option value="opacity">{t('common.opacity')}</option>
+        <option value="x">{t('panels.parameters.propX')}</option>
+        <option value="y">{t('panels.parameters.propY')}</option>
+        <option value="scaleX">{t('panels.parameters.propScaleX')}</option>
+        <option value="scaleY">{t('panels.parameters.propScaleY')}</option>
       </select>
 
       {/* Node */}
@@ -261,13 +264,13 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
         value={nodeId}
         onChange={e => setNodeId(e.target.value)}
       >
-        <option value="">— select node —</option>
+        <option value="">{t('panels.parameters.selectNode')}</option>
         {candidateNodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
       </select>
 
       <div className="flex gap-1 justify-end pt-0.5">
         <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           size="sm"
@@ -275,7 +278,7 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
           disabled={!nodeId || !animId}
           onClick={() => onAdd({ animationId: animId, nodeId, property })}
         >
-          Bind
+          {t('panels.parameters.bind')}
         </Button>
       </div>
     </div>

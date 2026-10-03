@@ -1,62 +1,62 @@
-# Mesh Generation Parameters
+# 网格生成参数
 
-This document describes all parameters available for customizing mesh generation in Mesh Deformer.
+本文档描述 Mesh Deformer 中可用于自定义网格生成的所有参数。
 
-## Edge Detection
+## 边缘检测
 
-### Alpha Threshold
-- **Range:** 1–254
-- **Default:** 20
-- **Description:** Determines which pixels are considered part of the shape based on alpha transparency. Only pixels with alpha values greater than or equal to this threshold are included in the edge detection. Lower values include more semi-transparent pixels; higher values require pixels to be nearly opaque.
+### 透明度阈值
+- **范围：** 1–254
+- **默认值：** 20
+- **说明：** 根据透明度（alpha）判定哪些像素被视为形状的一部分。只有 alpha 值大于或等于该阈值的像素才会被纳入边缘检测。较低的值会纳入更多半透明像素；较高的值要求像素接近完全不透明。
 
-### Contour Smooth
-- **Range:** 0–8
-- **Default:** 3
-- **Description:** The number of smoothing passes applied to the detected contour. Each pass applies a simple averaging filter to reduce jaggedness and create a smoother outline. Higher values produce smoother edges but may lose fine detail.
+### 轮廓平滑
+- **范围：** 0–8
+- **默认值：** 3
+- **说明：** 应用于检测到的轮廓的平滑处理次数。每次处理都会应用一个简单的均值滤波器，以减少锯齿并生成更平滑的外轮廓。较高的值会产生更平滑的边缘，但可能丢失精细细节。
 
-## Mesh Density
+## 网格密度
 
-### Interior Spacing
-- **Range:** 8–80 pixels
-- **Default:** 30
-- **Description:** The approximate grid spacing for sampling interior vertices. Controls how densely packed the mesh is inside the shape. Smaller values create finer, denser meshes with more vertices; larger values create coarser meshes.
+### 内部间距
+- **范围：** 8–80 像素
+- **默认值：** 30
+- **说明：** 采样内部顶点的近似网格间距。控制形状内部网格的密集程度。较小的值会生成更精细、更密集、顶点更多的网格；较大的值会生成更粗糙的网格。
 
-### Edge Padding
-- **Range:** 0–40 pixels
-- **Default:** 8
-- **Description:** Creates an exclusion buffer zone around edge vertices. Interior points within this distance from the edge are removed, preventing interior vertices from being placed too close to the boundary. Use higher values for cleaner edge definition.
+### 边缘留白
+- **范围：** 0–40 像素
+- **默认值：** 8
+- **说明：** 在边缘顶点周围创建排除缓冲带。与该边缘距离小于此值的内部点将被移除，防止内部顶点被放置得过于靠近边界。使用较高的值可获得更干净的边缘定义。
 
-### Edge Points
-- **Range:** 30–300 vertices
-- **Default:** 80
-- **Description:** The number of vertices sampled along the edge contour. Determines how finely the shape boundary is represented. More points create a more accurate boundary representation but increase overall mesh complexity.
+### 边缘点数
+- **范围：** 30–300 个顶点
+- **默认值：** 80
+- **说明：** 沿边缘轮廓采样的顶点数量。决定形状边界被表示的精细程度。点数越多，边界表示越精确，但会提升整体网格复杂度。
 
-## View Options
+## 视图选项
 
-### Image
-- **Type:** Toggle
-- **Default:** ON
-- **Description:** Display the original image (textured with deformations applied).
+### 图像
+- **类型：** 开关
+- **默认值：** 开
+- **说明：** 显示原始图像（应用变形后带贴图）。
 
-### Mesh Wireframe
-- **Type:** Toggle
-- **Default:** ON
-- **Description:** Display the triangle wireframe overlay.
+### 网格线框
+- **类型：** 开关
+- **默认值：** 开
+- **说明：** 显示三角形线框叠加层。
 
-### Vertices
-- **Type:** Toggle
-- **Default:** ON
-- **Description:** Show individual vertices. Edge vertices appear in teal; interior vertices appear in purple.
+### 顶点
+- **类型：** 开关
+- **默认值：** 开
+- **说明：** 显示各个顶点。边缘顶点以青绿色显示，内部顶点以紫色显示。
 
-### Edge Outline
-- **Type:** Toggle
-- **Default:** OFF
-- **Description:** Highlight the edge contour with a bright outline.
+### 边缘轮廓
+- **类型：** 开关
+- **默认值：** 关
+- **说明：** 用醒目的轮廓高亮显示边缘轮廓。
 
-## Interaction Mode
+## 交互模式
 
-### Deform
-- **Description:** Drag vertices to deform the mesh and image.
+### 变形
+- **说明：** 拖动顶点以变形网格和图像。
 
-### Add pt
-- **Description:** Click to add new vertices to the mesh (automatically retriangulates).
+### 添加点
+- **说明：** 单击以向网格添加新顶点（自动重新三角剖分）。

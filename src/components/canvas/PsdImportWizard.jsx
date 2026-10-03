@@ -8,6 +8,7 @@ import {
 import { splitLayerLR } from '../../io/splitLR';
 import { HelpIcon } from '../ui/help-icon';
 import { useToast } from '../../hooks/use-toast';
+import { useTranslation } from '@/i18n';
 
 /** Base ranges for the strength slider — keyed by param id */
 const LIVE_RIG_BASE = {
@@ -31,6 +32,18 @@ const LIVE_RIG_BASE = {
   ParamHairBack:   { min:  -1, max:   1 },
 };
 
+/** liverig 参数分组名 → i18n 键后缀 的映射（分组名同时用作分组键，保持英文） */
+const LIVERIG_GROUP_KEYS = {
+  Face: 'face',
+  Eye: 'eye',
+  Eyeball: 'eyeball',
+  Brow: 'brow',
+  Mouth: 'mouth',
+  Body: 'body',
+  Hair: 'hair',
+  Other: 'other',
+};
+
 export default function PsdImportWizard({
   step,
   onSetStep,
@@ -49,7 +62,9 @@ export default function PsdImportWizard({
   onWarpStrength,
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [rigStatus, setRigStatus] = useState('');
+  const [rigStatusIsError, setRigStatusIsError] = useState(false);
   const [rigLoading, setRigLoading] = useState(false);
   const [tagOverrides, setTagOverrides] = useState({});
   const [mappingExpanded, setMappingExpanded] = useState(false);
@@ -142,21 +157,22 @@ export default function PsdImportWizard({
     }
 
     if (failedMsgs.length > 0) {
-      const errorMsg = `Could not separate: ${failedMsgs.join(', ')}. The layer may be a single connected shape. Continuing without splitting them.`;
+      const errorMsg = t('canvas.wizard.split.error', { names: failedMsgs.join(', ') });
       setSplitError(errorMsg);
       toast({
-        title: "Partial Split Info",
+        title: t('canvas.wizard.split.partialTitle'),
         description: errorMsg,
         variant: "default",
       });
     }
 
     return splits;
-  }, [effectiveLayers, mergedTagsToSplit, psdW, psdH, toast]);
+  }, [effectiveLayers, mergedTagsToSplit, psdW, psdH, toast, t]);
 
   /* ── Handle manual rigging (bounding-box heuristic) ────────────────────── */
   const handleRigManually = useCallback(async () => {
     setRigLoading(true);
+    setRigStatusIsError(false);
     try {
       const layerMap = {};
       effectiveLayers.forEach(l => {
@@ -177,7 +193,8 @@ export default function PsdImportWizard({
       }
     } catch (err) {
       console.error('[Manual Rig]', err);
-      setRigStatus(`Error: ${err.message}`);
+      setRigStatusIsError(true);
+      setRigStatus(err.message);
     } finally {
       setRigLoading(false);
     }
@@ -186,8 +203,9 @@ export default function PsdImportWizard({
   /* ── Handle DWPose rigging ────────────────────────────────────────────── */
   const runArmatureRig = useCallback(async (onnxPayload) => {
     setRigLoading(true);
+    setRigStatusIsError(false);
     try {
-      setRigStatus('Loading ONNX model…');
+      setRigStatus(t('canvas.wizard.status.loadingOnnx'));
       const session = await loadDWPoseSession(onnxPayload);
       onnxSessionRef.current = session;
 
@@ -200,7 +218,7 @@ export default function PsdImportWizard({
 
       const skeleton = await runDWPose(effectiveLayers, psdW, psdH, session, setRigStatus);
 
-      setRigStatus('Building rig…');
+      setRigStatus(t('canvas.wizard.status.buildingRig'));
       const { groupDefs, assignments } = buildArmatureNodes(skeleton, groups, effectiveLayers, partIds, () => {
         return `grp-${Math.random().toString(36).substr(2, 9)}`;
       });
@@ -212,12 +230,13 @@ export default function PsdImportWizard({
       }
     } catch (err) {
       console.error('[AutoRig]', err);
-      setRigStatus(`Error: ${err.message}`);
+      setRigStatusIsError(true);
+      setRigStatus(err.message);
       clearDWPoseSession();
     } finally {
       setRigLoading(false);
     }
-  }, [step, effectiveLayers, psdW, psdH, partIds, meshAllParts, onFinalize, onApplyRig, onnxSessionRef]);
+  }, [step, effectiveLayers, psdW, psdH, partIds, meshAllParts, onFinalize, onApplyRig, onnxSessionRef, t]);
 
   /* ── Effect: Auto-rearrange eye layers ────────────────────────────────── */
   useEffect(() => {
@@ -226,11 +245,11 @@ export default function PsdImportWizard({
     if (result) {
       onUpdatePsd(result);
       toast({
-        title: "Layers Auto-Rearranged",
-        description: "Eye irides moved above eyewhite layers for proper depth.",
+        title: t('canvas.wizard.autoRearrange.title'),
+        description: t('canvas.wizard.autoRearrange.description'),
       });
     }
-  }, [layers, partIds, onUpdatePsd, toast]);
+  }, [layers, partIds, onUpdatePsd, toast, t]);
 
   /* ── Step: Review layer mapping ─────────────────────────────────────── */
   if (step === 'review') {
@@ -254,7 +273,7 @@ export default function PsdImportWizard({
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70">
         <div className="bg-popover border border-border rounded-lg shadow-2xl p-6 max-w-md w-full mx-4 flex flex-col gap-4">
-          <h3 className="text-base font-semibold text-foreground">Review Layer Mapping</h3>
+          <h3 className="text-base font-semibold text-foreground">{t('canvas.wizard.review.title')}</h3>
 
           {/* Collapsed summary row */}
           <button
@@ -269,14 +288,14 @@ export default function PsdImportWizard({
               <AlertTriangle size={14} className="text-amber-400 shrink-0" />
             )}
             <span className="flex-1 text-xs text-foreground">
-              {matchCount} of {layers.length} layers matched
+              {t('canvas.wizard.review.matched', { matched: matchCount, total: layers.length })}
               {hasWarnings && (
                 <span className="text-amber-400 ml-1">
-                  · {unmatchedLayers.length} unmatched
+                  · {t('canvas.wizard.review.unmatchedCount', { count: unmatchedLayers.length })}
                 </span>
               )}
               {tooFew && (
-                <span className="text-amber-400 ml-1">· too few for auto-rig</span>
+                <span className="text-amber-400 ml-1">· {t('canvas.wizard.review.tooFewInline')}</span>
               )}
             </span>
             {mappingExpanded
@@ -322,9 +341,9 @@ export default function PsdImportWizard({
                           : 'border-amber-500/50 text-amber-400',
                       ].join(' ')}
                     >
-                      <option value="">— unassigned —</option>
-                      {KNOWN_TAGS.map(t => (
-                        <option key={t} value={t}>{t}</option>
+                      <option value="">{t('canvas.wizard.review.unassigned')}</option>
+                      {KNOWN_TAGS.map(tag => (
+                        <option key={tag} value={tag}>{tag}</option>
                       ))}
                     </select>
                   </div>
@@ -336,7 +355,7 @@ export default function PsdImportWizard({
           {/* Warning messages */}
           {tooFew && (
             <p className="text-[11px] text-amber-400 leading-relaxed">
-              At least 4 layers must be matched for automatic rigging. Assign unmatched layers above or skip rigging.
+              {t('canvas.wizard.review.tooFewWarning')}
             </p>
           )}
 
@@ -350,7 +369,7 @@ export default function PsdImportWizard({
                   onChange={e => setPerformSplit(e.target.checked)}
                   className="w-3.5 h-3.5 rounded border border-border"
                 />
-                <span>Split merged parts (recommended)</span>
+                <span>{t('canvas.wizard.review.splitMerged')}</span>
               </label>
               {splitError && (
                 <div className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2">
@@ -369,7 +388,7 @@ export default function PsdImportWizard({
               onChange={e => setMeshAllParts(e.target.checked)}
               className="w-3.5 h-3.5 rounded border border-border"
             />
-            <span>Mesh all parts after import</span>
+            <span>{t('canvas.wizard.review.meshAllParts')}</span>
           </label>
 
           {/* Footer */}
@@ -378,7 +397,7 @@ export default function PsdImportWizard({
               onClick={onCancel}
               className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              Cancel Import
+              {t('canvas.wizard.review.cancelImport')}
             </button>
             <div className="flex items-center gap-1.5">
               <button
@@ -388,13 +407,13 @@ export default function PsdImportWizard({
                 }}
                 className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
               >
-                Skip rigging
+                {t('canvas.wizard.review.skipRigging')}
               </button>
               <button
                 onClick={handleContinue}
                 className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium shrink-0"
               >
-                Continue →
+                {t('canvas.wizard.review.continue')}
               </button>
             </div>
           </div>
@@ -410,29 +429,23 @@ export default function PsdImportWizard({
   if (step === 'reorder') {
     return (
       <div className="absolute top-0 inset-x-0 z-40 flex items-center gap-4 px-4 py-2
-                      bg-background/90 border-b border-border backdrop-blur-sm
-                      animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
-        {/* Shimmer Attention Grabber */}
-        <div className="absolute top-0 inset-x-0 h-[2px] overflow-hidden opacity-30">
-          <div className="h-full w-1/4 bg-gradient-to-r from-transparent via-primary to-transparent animate-shimmer" />
-        </div>
-
-        <span className="text-xs font-semibold text-foreground">Step 2: Reorder Layers</span>
+                      bg-background border-b border-border
+                      animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+        <span className="text-xs font-semibold text-foreground">{t('canvas.wizard.reorder.title')}</span>
         <span className="text-xs text-muted-foreground flex-1">
-          Rearrange layers in the Layer Panel as needed to fix any ordering issues.
+          {t('canvas.wizard.reorder.description')}
         </span>
         <button
           onClick={onCancel}
           className="px-2 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onClick={handleRigManually}
-          className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-bold
-                     shadow-lg shadow-primary/20 ring-1 ring-primary/50 animate-in zoom-in-95 duration-700 delay-300 fill-mode-both"
+          className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
         >
-          Next: Adjust Joints →
+          {t('canvas.wizard.reorder.next')}
         </button>
       </div>
     );
@@ -445,26 +458,26 @@ export default function PsdImportWizard({
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70">
         <div className="bg-popover border border-border rounded-lg shadow-2xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-1">Load DWPose model</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-1">{t('canvas.wizard.dwpose.title')}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Download or upload the ~50 MB DWPose ONNX model for high-accuracy pose detection.
+              {t('canvas.wizard.dwpose.description')}
             </p>
           </div>
 
           {/* Model status */}
           <div className="p-2 rounded bg-muted border border-border">
             <p className="text-xs text-muted-foreground">
-              Status: {modelLoaded ? (
-                <span className="text-green-500 font-medium">Loaded ✓</span>
+              {t('canvas.wizard.dwpose.statusLabel')} {modelLoaded ? (
+                <span className="text-green-500 font-medium">{t('canvas.wizard.dwpose.loaded')}</span>
               ) : (
-                <span className="text-amber-500">Not loaded</span>
+                <span className="text-amber-500">{t('canvas.wizard.dwpose.notLoaded')}</span>
               )}
             </p>
           </div>
 
           {/* Load buttons */}
           <div className="flex flex-col gap-2">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Load Model</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('canvas.wizard.dwpose.loadModel')}</div>
             <div className="flex gap-2">
               {/* Local .onnx file */}
               <label className={[
@@ -473,7 +486,7 @@ export default function PsdImportWizard({
                   ? 'opacity-40 pointer-events-none border-border text-muted-foreground'
                   : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted',
               ].join(' ')}>
-                Load .onnx file
+                {t('canvas.wizard.dwpose.loadOnnx')}
                 <input
                   type="file" accept=".onnx" className="hidden"
                   onChange={async (e) => {
@@ -491,7 +504,7 @@ export default function PsdImportWizard({
                 className="flex-1 px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium disabled:opacity-40"
                 onClick={() => runArmatureRig(DWPOSE_URL)}
               >
-                {rigLoading ? 'Working…' : 'Download'}
+                {rigLoading ? t('canvas.wizard.dwpose.working') : t('canvas.wizard.dwpose.download')}
               </button>
             </div>
 
@@ -499,9 +512,9 @@ export default function PsdImportWizard({
             {rigStatus && (
               <p className={[
                 'text-[11px] px-1',
-                rigStatus.startsWith('Error') ? 'text-red-400' : 'text-muted-foreground',
+                rigStatusIsError ? 'text-red-400' : 'text-muted-foreground',
               ].join(' ')}>
-                {rigStatus}
+                {rigStatusIsError ? `${t('common.error')}: ${rigStatus}` : rigStatus}
               </p>
             )}
           </div>
@@ -513,7 +526,7 @@ export default function PsdImportWizard({
               className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
               onClick={() => onSetStep('adjust')}
             >
-              ← Back
+              ← {t('common.back')}
             </button>
           </div>
         </div>
@@ -525,16 +538,11 @@ export default function PsdImportWizard({
   if (step === 'adjust') {
     return (
       <div className="absolute top-0 inset-x-0 z-40 flex items-center gap-4 px-4 py-2
-                      bg-background/90 border-b border-border backdrop-blur-sm
-                      animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
-        {/* Shimmer Attention Grabber */}
-        <div className="absolute top-0 inset-x-0 h-[2px] overflow-hidden opacity-30">
-          <div className="h-full w-1/4 bg-gradient-to-r from-transparent via-primary to-transparent animate-shimmer" />
-        </div>
-
-        <span className="text-xs font-semibold text-foreground">Step 3: Adjust Joints</span>
+                      bg-background border-b border-border
+                      animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+        <span className="text-xs font-semibold text-foreground">{t('canvas.wizard.adjust.title')}</span>
         <span className="text-xs text-muted-foreground flex-1">
-          Drag yellow dots to reposition joints.
+          {t('canvas.joints.hint')}
         </span>
         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors shrink-0">
           <input
@@ -543,27 +551,26 @@ export default function PsdImportWizard({
             onChange={e => setMeshAllParts(e.target.checked)}
             className="w-3.5 h-3.5 rounded border border-border"
           />
-          <span>Mesh all parts</span>
+          <span>{t('canvas.wizard.adjust.meshAllParts')}</span>
         </label>
         <button
           onClick={() => onSetStep('dwpose')}
           className="px-2 py-1 text-xs rounded border border-primary/50 text-primary hover:bg-primary/10 transition-colors flex items-center gap-1.5"
         >
           <Scissors size={12} />
-          AI Auto-Rig (DWPose)
+          {t('canvas.wizard.adjust.autoRig')}
         </button>
         <button
           onClick={onBack}
           className="px-2 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          ← Back
+          ← {t('common.back')}
         </button>
         <button
           onClick={() => onLiveRig(meshAllParts)}
-          className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-bold
-                     shadow-lg shadow-primary/25 ring-1 ring-primary/50 animate-in zoom-in-95 duration-700 delay-300 fill-mode-both"
+          className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
         >
-          Next: Setup Parameters →
+          {t('canvas.wizard.adjust.next')}
         </button>
       </div>
     );
@@ -602,20 +609,20 @@ export default function PsdImportWizard({
                       animate-in fade-in slide-in-from-left-4 duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <span className="text-xs font-semibold text-foreground">Step 4: Live2D Parameters</span>
-          <span className="text-[10px] text-muted-foreground">Idle preview playing</span>
+          <span className="text-xs font-semibold text-foreground">{t('canvas.wizard.liverig.title')}</span>
+          <span className="text-[10px] text-muted-foreground">{t('canvas.wizard.liverig.previewPlaying')}</span>
         </div>
 
         {/* Scrollable parameter list */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
           {liveRigParams?.length === 0 && (
-            <p className="text-xs text-muted-foreground px-1 py-4 text-center">Generating…</p>
+            <p className="text-xs text-muted-foreground px-1 py-4 text-center">{t('canvas.wizard.liverig.generating')}</p>
           )}
           {groups.map(groupName => (
             <div key={groupName}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  {groupName}
+                  {t('canvas.wizard.liverig.group.' + (LIVERIG_GROUP_KEYS[groupName] ?? 'other'))}
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
@@ -655,13 +662,13 @@ export default function PsdImportWizard({
             onClick={() => onComplete(meshAllParts)}
             className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            Skip
+            {t('canvas.wizard.liverig.skip')}
           </button>
           <button
             onClick={() => onComplete(meshAllParts)}
             className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
           >
-            Done →
+            {t('canvas.wizard.liverig.done')}
           </button>
         </div>
       </div>
