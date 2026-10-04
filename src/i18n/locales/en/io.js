@@ -69,6 +69,7 @@ export default {
     configureRules: 'Configure physics rules…',
     cmo3Description: 'project file editable in Cubism Editor 5.0. Each mesh gets its own texture.',
     runtimeFormatDescription: 'runtime format (SDK 4.0). Experimental: no animation support and not editable in Cubism Editor.',
+    godotExperimentalNote: 'Experimental: Godot has no official Live2D runtime — only community implementations exist. Compatibility and stability are not guaranteed. For experimentation only, not for production.',
     // Spine 导入说明
     spineHowTo: 'How to import to Spine:',
     spineStep1Prefix: 'Unzip the exported',
@@ -201,6 +202,8 @@ export default {
     generatingCan3: 'Generating .can3 animation...',
     preparingSkeletonData: 'Preparing skeleton data...',
     collectingTextures: 'Collecting textures...',
+    packingAtlas: 'Packing Spine atlas...',
+    writingAtlasPage: 'Writing atlas page {filename}...',
     packingImage: 'Packing image: {filename}',
     generatingZip: 'Generating ZIP...',
     packingFile: 'Packing {animName}/{filename}',

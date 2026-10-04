@@ -561,6 +561,10 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                     <><span className="font-medium">Live2D Cubism V4.00</span> — {t('io.export.runtimeFormatDescription')}</>
                   )}
                 </div>
+                {/* Godot 无官方 Live2D 运行时，明确标注为实验性 */}
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 px-3 py-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/40">
+                  {t('io.export.godotExperimentalNote')}
+                </div>
               </div>
             </>
           )}

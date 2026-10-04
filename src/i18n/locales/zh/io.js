@@ -69,6 +69,7 @@ export default {
     configureRules: '配置物理规则…',
     cmo3Description: '工程文件，可在 Cubism Editor 5.0 中编辑。每个网格拥有独立贴图。',
     runtimeFormatDescription: '运行时格式（SDK 4.0）。实验性功能：不支持动画，且无法在 Cubism Editor 中编辑。',
+    godotExperimentalNote: '实验性：Godot 没有官方 Live2D 运行时，只能依赖社区实现，兼容性与稳定性无法保证，仅供实验使用，请勿用于生产环境。',
     // Spine 导入说明
     spineHowTo: '如何导入到 Spine：',
     spineStep1Prefix: '解压导出的',
@@ -201,6 +202,8 @@ export default {
     generatingCan3: '正在生成 .can3 动画…',
     preparingSkeletonData: '正在准备骨架数据…',
     collectingTextures: '正在收集贴图…',
+    packingAtlas: '正在打包 Spine 图集…',
+    writingAtlasPage: '正在写入图集页面 {filename}…',
     packingImage: '正在打包图像：{filename}',
     generatingZip: '正在生成 ZIP…',
     packingFile: '正在打包 {animName}/{filename}',

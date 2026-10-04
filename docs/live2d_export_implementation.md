@@ -5,10 +5,12 @@
 ## 概述
 
 Stretchy Studio 可以将项目导出为 **Live2D Cubism V4.0** 格式，从而能够集成到：
-- 游戏引擎（Godot、Unreal 等）
+- 游戏引擎（Unreal、Cocos 等有官方 Cubism SDK 的引擎）
 - Ren'Py 视觉小说框架
 - Live2D Cubism SDK 应用程序
 - Cubism Editor 5.0（用于项目编辑）
+
+> ⚠️ **Godot 例外（实验性）**：Live2D 官方 **没有** Godot 版 SDK（官方仅提供 Unity / Unreal / Native / Web / Java / Cocos）。在 Godot 中只能使用第三方社区实现，兼容性与稳定性无法保证，仅供实验。详见下文「实验性：Godot 支持」。
 
 ## 导出类型
 
@@ -187,6 +189,26 @@ Stretchy Studio 使用 **MaxRects BSSF（Best Short Side Fit）** 并配合缩�
 
 - ✅ `.cmo3 project export` —— 完整功能集，可在 Cubism Editor 中编辑
 - ⚠️ `.moc3 runtime export` —— 仅限于不透明度动画；旋转/变形建议使用 `.cmo3`
+- ⚠️ **实验性提示（Godot）** —— 选择任一 Live2D 导出类型时，弹窗都会显示「Godot 没有官方 Live2D 运行时，只能依赖社区实现，兼容性与稳定性无法保证，仅供实验使用，请勿用于生产环境」的提示。
+
+---
+
+## 实验性：Godot 支持
+
+Live2D Cubism SDK 官方支持平台为 **Unity / Unreal Engine / Native(C++) / Web / Java / Cocos Creator**，其中 **不包含 Godot**。因此在 Godot 中使用本导出产物属于**实验性**方案：
+
+| 导出类型 | 能否在 Godot 直接使用 | 说明 |
+|----------|----------------------|------|
+| `.cmo3` 工程文件 | ❌ 不能 | 这是 Cubism Editor 的工程文件，Godot 不识别；需先在 Cubism Editor 中打开并发布 `.moc3` |
+| `.moc3` 运行时 | ⚠️ 视社区实现而定 | 需搭配社区维护的 Live2D for Godot（GDScript/GDExtension）运行时；官方无支持，版本与功能兼容性不保证 |
+| 帧序列（PNG/WebP 序列） | ✅ 可以 | 属于通用图像导出，可导入 Godot 的 `AnimatedSprite2D` / `SpriteFrames` |
+
+**风险提示：**
+- 社区运行时可能无法覆盖全部 Cubism 特性（如物理、表情、参数组、变形器），加载失败或表现异常都属正常现象。
+- 社区运行时的 SDK 版本需与本导出产物声明的 **Cubism 4.0** 对齐，跨版本可能出现解析失败。
+- 请勿将 Live2D 导出用于 Godot 生产项目；如必须使用，请先做充分的兼容性验证。
+
+**推荐替代：** 若目标引擎是 Godot，优先使用 **Spine 导出**（有官方 spine-godot 运行时）或**帧序列导出**。
 
 ---
 
