@@ -8,9 +8,11 @@
  *   - skeleton.atlas 图集描述文件
  *   - skeleton.png   图集页面（多页时依次为 skeleton2.png、skeleton3.png …）
  *
- * 关于版本：skeleton.json 声明 `spine: "4.0"`，因此运行时必须使用
- * **4.0.x** 的 spine-godot（运行时 major.minor 必须与骨架版本一致）。
+ * 关于版本：skeleton.json 声明 `spine: "4.3.17"`，因此运行时必须使用
+ * **spine-godot 4.3**（运行时 major.minor 必须与骨架版本一致）。
+ * 注意：上游 spine-runtimes 的 4.0 分支没有 spine-godot，预编译 GDExtension 从 4.2/4.3 才有。
  */
+import { computeWorldMatrices, mat3Inverse, mat3Mul, mat3Identity } from '@/renderer/transforms';
 import { t } from '@/i18n';
 import { packRegions, buildAtlasText, DEFAULT_PAGE_SIZE } from './spine/spineAtlas.js';
 
@@ -46,6 +48,14 @@ export async function exportToSpine({ project, onProgress }) {
   );
   if (skipped.length > 0) {
     console.warn(`[Spine Export] 以下区域因尺寸超过图集页面被跳过：${skipped.join(', ')}`);
+  }
+  // spine-godot 4.3 加载多页图集时存在缺陷：靠后页面的区域可能无法绘制。
+  // 默认 4096 单页已能容纳 25 个 768×768 区域；若仍超出，说明部件过多，
+  // 建议缩小单部件贴图后再导出。
+  if (pages.length > 1) {
+    console.warn(
+      `[Spine Export] 图集被拆分为 ${pages.length} 页，部分 Godot 运行时可能无法绘制靠后页面。建议减少部件数或缩小贴图以保持单页。`
+    );
   }
 
   // 仅保留成功进入图集的部件，避免运行时因「区域不存在」而加载失败
@@ -260,28 +270,35 @@ function buildSpineJson(project, availablePartIds = null) {
     return null;
   };
 
-  // Spine expects bone setup coordinates (x,y) to be local to the parent bone.
-  // In Plianca Studio, a node's local transform places its pivot at (x + pivotX, y + pivotY)
-  // within its parent's un-transformed internal coordinate space.
-  // The distance from the parent bone's pivot to this node's pivot is then:
-  // dx = (node.x + node.pivotX) - parentBone.pivotX
-  // dy = (node.y + node.pivotY) - parentBone.pivotY
-  const getLocalSpineOffset = (node, parentBoneNode) => {
-    const nx = (node.transform?.x ?? 0) + (node.transform?.pivotX ?? 0);
-    const ny = (node.transform?.y ?? 0) + (node.transform?.pivotY ?? 0);
+  // 计算世界矩阵：Spine 中没有 warp / deformer 层，必须用「世界坐标」计算偏移，
+  // 否则形变层引入的位移会丢失，部件之间会错位（表现为各部件散开）。
+  const worldMatrices = computeWorldMatrices(nodes);
 
-    // 无父骨骼时挂到 Spine 的 root（0,0），局部偏移即其世界坐标
-    if (!parentBoneNode) {
-      return { x: nx, y: canvasH - ny };
+  // 节点「轴心点（pivot）」的世界坐标。
+  // 注意：矩阵平移列 m[6]/m[7] 是节点局部原点 (0,0) 的像，而不是轴心点
+  // (pivotX,pivotY) 的像。当节点 pivot 非零但旋转/缩放为 0（本项目导入的
+  // 分组大多如此）时 m[6]/m[7] 恒为 0，会把所有骨骼塌缩到原点，导致动画
+  // 围绕画布原点旋转、部件乱飞。这里必须显式用世界矩阵变换轴心点。
+  const worldPivot = (node) => {
+    const px = node.transform?.pivotX ?? 0;
+    const py = node.transform?.pivotY ?? 0;
+    const m = worldMatrices.get(node.id);
+    if (!m) {
+      // 退化兜底：没有世界矩阵时按局部坐标处理
+      return { x: (node.transform?.x ?? 0) + px, y: (node.transform?.y ?? 0) + py };
     }
+    return { x: m[0] * px + m[3] * py + m[6], y: m[1] * px + m[4] * py + m[7] };
+  };
 
-    const px = parentBoneNode.transform?.pivotX ?? 0;
-    const py = parentBoneNode.transform?.pivotY ?? 0;
+  // 画布坐标（Y 向下）→ Spine 世界坐标（Y 向上）
+  const toSpineWorld = (p) => ({ x: p.x, y: canvasH - p.y });
 
-    return {
-      x: nx - px,
-      y: -(ny - py) // Flip Y for Spine's coordinate system
-    };
+  // 相对父骨骼的局部偏移 = 两者世界坐标之差（Y 轴已翻转）
+  const getLocalSpineOffset = (node, parentBoneNode) => {
+    const a = toSpineWorld(worldPivot(node));
+    if (!parentBoneNode) return a;
+    const b = toSpineWorld(worldPivot(parentBoneNode));
+    return { x: a.x - b.x, y: a.y - b.y };
   };
 
 
@@ -352,24 +369,45 @@ function buildSpineJson(project, availablePartIds = null) {
   });
 
   // ── 4. Skins ──────────────────────────────────────────────────────────────
-  // Region attachment x/y = center of the image in the parent bone's local space.
-  // We get this by taking the part's world canvas position (which is the pivot
-  // point — typically image center) and expressing it relative to the parent bone.
+  // Spine 的附件几何（region 的 x/y、mesh 的 vertices）都是「相对所属骨骼」的
+  // 局部坐标，并且会随骨骼旋转一起旋转。因此必须把部件从「画布局部空间」先经
+  // 世界矩阵，再用所属骨骼世界矩阵的逆变换到骨骼局部空间，最后翻转 Y
+  // （Stretchy Studio 为 Y 向下，Spine 为 Y 向上）。
+  //
+  // 若直接把画布绝对坐标写进 vertices：① 骨骼旋转（动画）时部件会绕画布原点
+  // 乱飞；② 整体上下颠倒。这是实机联调中「部件消失 / 角色倒立」的根因。
   const skinAttachments = {};
 
+  /** 返回「部件局部 → 所属骨骼局部」的 3×3 矩阵（画布坐标，Y 仍向下） */
+  const boneLocalMatrix = (part, boneNode) => {
+    const wp = worldMatrices.get(part.id) ?? mat3Identity();
+    if (!boneNode) return wp;
+    const wb = worldMatrices.get(boneNode.id);
+    if (!wb) return wp;
+    return mat3Mul(mat3Inverse(wb), wp);
+  };
+
+  /** 应用 3×3 仿射矩阵到点（列主序） */
+  const applyMat = (m, x, y) => ({
+    x: m[0] * x + m[3] * y + m[6],
+    y: m[1] * x + m[4] * y + m[7],
+  });
+
   for (const part of parts) {
-    const t = part.transform || {};
     const boneNode = resolveBoneNode(part);
-    const pos = getLocalSpineOffset(part, boneNode);  // pivot offset relative to the parent bone's pivot
+    const m = boneLocalMatrix(part, boneNode); // 部件局部 → 骨骼局部（画布空间）
+    const imgW = part.imageWidth ?? canvasW;
+    const imgH = part.imageHeight ?? canvasH;
 
     const attachment = {
       type: "region",
       name: sanitizeName(part.name),
-      x: pos.x,
-      y: pos.y,
-      rotation: -(t.rotation || 0),
-      width: part.imageWidth ?? canvasW,
-      height: part.imageHeight ?? canvasH,
+      // 位置与旋转已全部烘焙进几何（region 用中心点、mesh 用顶点），
+      // 因此此处不再单独设置 rotation，避免重复旋转。
+      x: 0,
+      y: 0,
+      width: imgW,
+      height: imgH,
     };
 
     if (part.mesh) {
@@ -379,7 +417,9 @@ function buildSpineJson(project, availablePartIds = null) {
       // 否则生成的是对象数组，Spine 运行时解析会崩溃。
       const flatVertices = [];
       for (const v of part.mesh.vertices ?? []) {
-        flatVertices.push(v?.x ?? 0, v?.y ?? 0);
+        const p = applyMat(m, v?.x ?? 0, v?.y ?? 0);
+        // Y 翻转：Spine 为 Y 向上
+        flatVertices.push(p.x, -p.y);
       }
       attachment.vertices = flatVertices;
       // uvs / triangles 可能是 TypedArray，统一转成普通数组以保证 JSON 序列化正确
@@ -395,6 +435,11 @@ function buildSpineJson(project, availablePartIds = null) {
         }
       }
       attachment.triangles = flatTriangles;
+    } else {
+      // 非网格附件：图片以中心为锚点，换算到骨骼局部并翻转 Y
+      const c = applyMat(m, imgW / 2, imgH / 2);
+      attachment.x = c.x;
+      attachment.y = -c.y;
     }
 
     const slotKey = sanitizeName(part.name);

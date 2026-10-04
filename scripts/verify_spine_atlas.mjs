@@ -141,17 +141,37 @@ async function main() {
     const { pages } = packRegions([{ name: 'a', width: 200, height: 200 }], 256);
     assert.throws(() => buildAtlasText(pages, []), '页面文件名数量不匹配应抛错');
     assert.throws(() => buildAtlasText([], []), '空页面应抛错');
+
+    // 多页之间必须以空行分隔（libgdx/Spine 解析器以空行判定页结束）
+    const multi = packRegions(
+      [{ name: 'a', width: 200, height: 200 }, { name: 'b', width: 200, height: 200 }],
+      256
+    );
+    assert.equal(multi.pages.length, 2, '两个 200×200 区域在 256 页内应分成两页');
+    const multiText = buildAtlasText(multi.pages, ['a.png', 'b.png']);
+    assert.ok(multiText.includes('\n\n'), '多页 .atlas 之间应存在空行分隔');
     passed++;
-    console.log('✓ 测试 6：参数校验（文件名数量/空页面）');
+    console.log('✓ 测试 6：参数校验（文件名数量/空页面/多页空行分隔）');
   }
 
   // ── 测试 7：默认页面尺寸常量正确 ─────────────────────────────────────
   {
-    assert.equal(DEFAULT_PAGE_SIZE, 2048, '默认页面尺寸应为 2048');
+    assert.equal(DEFAULT_PAGE_SIZE, 4096, '默认页面尺寸应为 4096');
     const { pages } = packRegions([{ name: 'x', width: 10, height: 10 }]);
-    assert.equal(pages[0].width, 2048, '未传 pageSize 时应使用默认值');
+    assert.equal(pages[0].width, 4096, '未传 pageSize 时应使用默认值');
     passed++;
     console.log('✓ 测试 7：默认页面尺寸');
+  }
+
+  // ── 测试 8：常规角色（22 个 768×768 区域）应打包为单页 ────────────────
+  {
+    const items = Array.from({ length: 22 }, (_, i) => ({ name: `p${i}`, width: 768, height: 768 }));
+    const { pages } = packRegions(items);
+    assert.equal(pages.length, 1, '22 个 768×768 区域应能放进单张默认页面');
+    const flat = pages[0].regions.length;
+    assert.equal(flat, 22, '单页应包含全部 22 个区域');
+    passed++;
+    console.log('✓ 测试 8：常规角色单页打包');
   }
 
   console.log(`\n[verify-spine-atlas] 全部通过（${passed} 项）。`);

@@ -16,8 +16,14 @@
  * @module io/spine/spineAtlas
  */
 
-/** 默认图集页面尺寸（正方形，像素） */
-export const DEFAULT_PAGE_SIZE = 2048;
+/**
+ * 默认图集页面尺寸（正方形，像素）。
+ *
+ * 使用较大的单页可以规避 spine-godot 4.3 的多页图集缺陷：实测当图集存在多页时，
+ * 靠后页面的区域会无法绘制（部件“消失”）。2048 单页仅能容纳 4 个 768×768 区域，
+ * 因此默认提高到 4096（可容纳 5×5=25 个 768×768 区域），保证常规角色仍是单页。
+ */
+export const DEFAULT_PAGE_SIZE = 4096;
 /** 相邻区域之间的默认间距（像素），防止线性采样时互相串色 */
 export const DEFAULT_PADDING = 2;
 
@@ -174,5 +180,7 @@ export function buildAtlasText(pages, pageFileNames) {
     return lines.join('\n');
   });
 
-  return `${blocks.join('\n')}\n`;
+  // 页与页之间必须用「空行」分隔：libgdx/Spine 的图集解析器以空行作为一页的
+  // 结束标志，缺少空行时后续页面会被误解析，导致区域找不到 / 部件不渲染。
+  return `${blocks.join('\n\n')}\n`;
 }
