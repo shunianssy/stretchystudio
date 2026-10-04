@@ -94,25 +94,34 @@ $SpineSprite.get_animation_state().set_animation("Idle", true, 0)
 | 问题 | 现象 | 修复 |
 |------|------|------|
 | **多页图集**（6 页 2048×2048） | 只有部分部件渲染，靠后页面的区域整体“消失”（逐插槽遮罩测试确认：页 4 全部未绘制） | 将图集改为 **单页**：`DEFAULT_PAGE_SIZE` 由 2048 提升到 **4096**（单页可容纳 5×5=25 个 768×768 区域）。同时修正 `.atlas` 的**页间空行分隔**（libgdx/Spine 解析器以空行判定一页结束，缺失时空行后页面会被误解析） |
-| **网格顶点未做骨骼空间 + Y 翻转** | 角色整体上下颠倒；且顶点是画布绝对坐标，骨骼旋转（动画）时部件会绕画布原点乱飞 | 顶点先经「部件局部 → 骨骼局部」矩阵（`Wb⁻¹·Wp`）变换，再翻转 Y（`-y`）；附件 `x/y/rotation` 归零（几何已烘焙） |
 | **`worldPivot` 取错矩阵分量** | `worldPivot` 用矩阵平移列 `m[6]/m[7]`（局部原点的像）。当节点 pivot 非零但旋转/缩放为 0 时该值恒为 0，**所有骨骼塌缩到原点**，动画会绕画布原点旋转 | 改为显式变换轴心点：`(m[0]·px + m[3]·py + m[6], m[1]·px + m[4]·py + m[7])` |
+| **网格顶点未表达在「骨骼本地坐标系」** | 角色上下颠倒；只做 Y 翻转时各部件按骨骼分组**散开**（每个骨骼一组，被自己的轴心平移一次）；骨骼旋转时部件错位 | 顶点先经 `Wb⁻¹·Wp`（部件局部 → 骨骼本地，骨骼本地系以**轴心**为原点、与画布同向），再**减去骨骼本地轴心** `pivot`，最后翻转 Y：`vSpine = (u.x - pivot.x, -(u.y - pivot.y))`。附件 `x/y/rotation` 归零（几何已烘焙） |
+| **骨骼局部偏移未抵消父骨骼旋转** | 父骨骼带旋转/缩放时，子骨骼位置错乱 | 子骨骼偏移 = `F(L_parent⁻¹ · (R_child - R_parent))`，即先用父骨骼累计线性部分的逆把画布世界差换算到父骨骼本地朝向，再翻转 Y |
 
-> 验证方式：把导出结果放到一个独立测试工程中，用 `SubViewport` + `Camera2D` 离屏渲染，
-> 先用 `get_used_rect()` 统计非透明像素判断每个插槽是否真的有绘制，再逐帧比对。
-> 修复后 22 个部件全部绘制，角色姿态正确、纹理朝向正确。
+> **为什么顶点要用 `Wb⁻¹` 而不是「世界坐标相减」**：Spine 的骨骼会绕自身原点旋转，
+> 而该原点被设为骨骼轴心。顶点必须表达在「以轴心为原点、且不含骨骼自身旋转」的
+> 本地系中，骨骼的旋转由运行时施加。骨骼带旋转/缩放时，世界坐标相减与
+> `Wb⁻¹·Wp` 并不等价。
 
-> 说明：屏幕最终呈现的位置与骨骼轴心选择无关（顶点相对骨骼、骨骼带轴心，两者相加抵消），
-> 因此「显示」只依赖 Y 翻转与单页图集；而**动画的旋转中心**必须依赖正确的骨骼轴心
-> （即上面的 `worldPivot` 修复）。
+> 验证方式（两种，互相独立）：
+> 1. **数学自检**：用 Node 脚本同时模拟「画布变换」与「Spine 变换」，随机生成
+>    300 组含嵌套旋转/缩放/轴心的骨架，验证 `Spine世界坐标 == F_H(画布世界坐标)`，
+>    最大误差约 `2e-4` 像素（浮点噪声）。
+> 2. **实机渲染**：把导出结果放到独立测试工程，用 `SubViewport` + `Camera2D` 离屏渲染，
+>    用 `Image.get_used_rect()` 统计非透明像素，判断每个插槽是否真的绘制。
+
 
 ## 用法
 1. 打开 **Export Modal**。
 2. 选择 **Type: Spine (4.0+)**。
-3. 点击 **Export**，得到 `spine_export.zip`。
-4. 解压后目录结构为 `skeleton.json` / `skeleton.atlas` / `skeleton.png`（多页时含 `skeleton2.png` …）。
-5. **Spine Editor**：`Spine menu > Import Data...`，选择 `skeleton.json`（同名的 `skeleton.atlas` 会被自动匹配）。
-6. **spine-godot（Godot 4.6）**：
-   1. 把 `skeleton.json` **重命名为 `skeleton.spine-json`**，与 `.atlas`、`.png` 放在同一目录；
+3. 选择骨架数据文件名（导出面板里的开关）：
+   - **开（默认）**：`skeleton.spine-json` —— 给 **spine-godot** 用（spine-godot 只认这个扩展名）；
+   - **关**：`skeleton.json` —— 给 **Spine Editor** 用（`Import Data...` 只认 `.json`）。
+4. 点击 **Export**，得到 `spine_export.zip`。
+5. 解压后目录结构为 `skeleton.spine-json`（或 `skeleton.json`）/ `skeleton.atlas` / `skeleton.png`（单页；部件过多时才出现 `skeleton2.png` …）。
+6. **Spine Editor**：`Spine menu > Import Data...`，选择 `.json`（同名的 `skeleton.atlas` 会被自动匹配）。
+7. **spine-godot（Godot 4.6）**：
+   1. 把 `skeleton.spine-json`（导出时勾选开关即为此名，无需手动改名）与 `.atlas`、`.png` 放在同一目录；
    2. 安装 **spine-godot 4.3** GDExtension（下载地址按 `4.3/<Godot 版本 tag>/` 拼，例如 `spine-godot-extension-4.3-4.6.1-stable.zip`），解压后把 `bin/` 放到项目根目录；
    3. 参考上文第 7 节用 `SpineSkeletonDataResource` 绑定并播放动画。
 

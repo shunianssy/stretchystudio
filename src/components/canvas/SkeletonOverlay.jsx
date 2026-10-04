@@ -18,6 +18,7 @@ import { useAnimationStore } from '@/store/animationStore';
 import { SKELETON_CONNECTIONS } from '@/io/armatureOrganizer';
 import { computeWorldMatrices, mat3Identity, mat3Inverse } from '@/renderer/transforms';
 import { computePoseOverrides } from '@/renderer/animationEngine';
+import { computeLimbWeights } from '@/mesh/limbWeights';
 import { useToast } from '@/hooks/use-toast';
 import { beginBatch, endBatch } from '@/store/undoHistory';
 import { useTranslation } from '@/i18n';
@@ -249,16 +250,26 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
         const activeAnim = animations.find(a => a.id === animActiveAnimationId) ?? null;
         const endMs = (animEndFrame / animFps) * 1000;
         const overrides = computePoseOverrides(activeAnim, animCurrentTime, animLoopKeyframes, endMs);
+        // 父骨骼（肩 / 髋）：肢体轴向要由「父轴心 → 子关节轴心」决定
+        const shoulder = effectiveNodes.find(n => n.id === node.parent);
+        const shoulderX = shoulder?.transform?.pivotX ?? 0;
+        const shoulderY = shoulder?.transform?.pivotY ?? 0;
         for (const pt of effectiveNodes) {
           if (pt.type === 'part' && pt.mesh?.jointBoneId === node.id) {
             let startVerts = pt.mesh.vertices;
             if (editorModeRef.current === 'animation') {
                startVerts = animDraftPose.get(pt.id)?.mesh_verts ?? overrides?.get(pt.id)?.mesh_verts ?? pt.mesh.vertices;
             }
+            // 权重必须用**当前**轴心重算：mesh 里烘焙的 boneWeights 是生成网格那一刻的，
+            // 之后一旦拖动过肘/膝关节就会过期，导致部件扭曲、出现硬折痕（看起来像被切开）。
+            const weights = computeLimbWeights(
+              startVerts, shoulderX, shoulderY,
+              node.transform.pivotX, node.transform.pivotY
+            );
             dependentParts.push({
               partId: pt.id,
               startVerts: startVerts.map(v => ({...v})),
-              boneWeights: pt.mesh.boneWeights,
+              boneWeights: weights,
               imgPivotX: node.transform.pivotX,
               imgPivotY: node.transform.pivotY,
             });

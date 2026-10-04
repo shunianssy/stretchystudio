@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SIZE } from '@/io/spine/spineAtlas';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
@@ -50,6 +51,8 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
   const [exportDest, setExportDest] = useState('zip');
   const [modelName, setModelName] = useState('model');
   const [atlasSize, setAtlasSize] = useState(2048);
+  /** Spine 导出：骨架数据文件是否命名为 `.spine-json`（spine-godot 只认这个扩展名） */
+  const [spineGodotNaming, setSpineGodotNaming] = useState(true);
   const [generateRig, setGenerateRig] = useState(true);
   const [generatePhysics, setGeneratePhysics] = useState(true);
   // Per-category toggles (on = category emitted, off = all rules in that
@@ -206,6 +209,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
         const { exportToSpine } = await import('@/io/exportSpine');
         const zipBlob = await exportToSpine({
           project,
+          godotNaming: spineGodotNaming,
           onProgress: label => setProgress(p => p ? { ...p, label } : { current: 1, total: 1, label })
         });
         const url = URL.createObjectURL(zipBlob);
@@ -329,6 +333,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
     bgMode,
     bgColor,
     exportDest,
+    spineGodotNaming,
     onClose,
     handleLive2DExport,
     t,
@@ -646,13 +651,46 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
             <Separator />
 
             {isSpine && (
-              <div className="text-[11px] leading-relaxed text-muted-foreground bg-accent/20 p-3 rounded-md border border-accent/20 space-y-1.5">
-                <p className="font-semibold text-foreground/90">{t('io.export.spineHowTo')}</p>
-                <ol className="list-decimal list-inside space-y-1 ml-0.5">
-                  <li>{t('io.export.spineStep1Prefix')} <strong>.zip</strong> {t('io.export.spineStep1Suffix')}</li>
-                  <li>{t('io.export.spineStep2Prefix')} <strong>Spine menu &gt; Import Data...</strong></li>
-                  <li>{t('io.export.spineStep3Prefix')} <strong>.json</strong> {t('io.export.spineStep3Suffix')}</li>
-                </ol>
+              <div className="text-[11px] leading-relaxed text-muted-foreground bg-accent/20 p-3 rounded-md border border-accent/20 space-y-2">
+                {/* 版本自检：显示实际生效的「图集单页尺寸」。
+                    spine-godot 4.3 画不出多页图集的靠后页面，所以这里把真实数值暴露出来，
+                    一眼就能确认运行的是不是最新代码（旧版是 2048，会拆成多页 → Godot 缺贴图）。 */}
+                <p className={DEFAULT_PAGE_SIZE >= 4096 ? 'text-muted-foreground/90' : 'text-amber-400'}>
+                  {t('io.export.spineAtlasPageSize', { size: DEFAULT_PAGE_SIZE })}
+                </p>
+                {DEFAULT_PAGE_SIZE < 4096 && (
+                  <p className="text-amber-400">{t('io.export.spineAtlasStaleWarning', { size: DEFAULT_PAGE_SIZE })}</p>
+                )}
+
+                {/* .spine-json 命名开关（spine-godot 只认这个扩展名） */}
+                <label className="flex items-start gap-2 cursor-pointer hover:text-foreground transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={spineGodotNaming}
+                    onChange={e => setSpineGodotNaming(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border border-border mt-0.5 shrink-0"
+                    disabled={isExporting}
+                  />
+                  <span>
+                    {t('io.export.spineGodotNaming')}
+                    <span className="block text-[10px] text-muted-foreground/80 mt-0.5">
+                      {t('io.export.spineGodotNamingHint')}
+                    </span>
+                  </span>
+                </label>
+
+                <div className="border-t border-accent/20 pt-2 space-y-1.5">
+                  <p className="font-semibold text-foreground/90">{t('io.export.spineHowTo')}</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-0.5">
+                    <li>{t('io.export.spineStep1Prefix')} <strong>.zip</strong> {t('io.export.spineStep1Suffix')}</li>
+                    <li>{t('io.export.spineStep2Prefix')} <strong>Spine menu &gt; Import Data...</strong></li>
+                    <li>
+                      {t('io.export.spineStep3Prefix')}{' '}
+                      <strong>{spineGodotNaming ? 'skeleton.spine-json' : 'skeleton.json'}</strong>{' '}
+                      {t('io.export.spineStep3Suffix')}
+                    </li>
+                  </ol>
+                </div>
               </div>
             )}
 

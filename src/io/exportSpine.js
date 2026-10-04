@@ -25,10 +25,12 @@ const BASE_NAME = 'skeleton';
  *
  * @param {object} params
  * @param {object} params.project - projectStore.project 快照
+ * @param {boolean} [params.godotNaming=false] - true 时骨架数据文件名为
+ *   `skeleton.spine-json`（spine-godot 专用），false 时为 `skeleton.json`（Spine Editor 用）
  * @param {(msg: string) => void} [params.onProgress] - 进度回调
  * @returns {Promise<Blob>} ZIP blob
  */
-export async function exportToSpine({ project, onProgress }) {
+export async function exportToSpine({ project, godotNaming = false, onProgress }) {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
 
@@ -67,7 +69,11 @@ export async function exportToSpine({ project, onProgress }) {
   // ── 3. 生成并写入骨架数据 ────────────────────────────────────────────
   onProgress?.(t('io.progress.preparingSkeletonData'));
   const skeletonData = buildSpineJson(project, availableIds);
-  zip.file('skeleton.json', JSON.stringify(skeletonData, null, 2));
+  // spine-godot 只识别 `.spine-json`（`.json` 会被 Godot 自身的 JSON 导入器抢走），
+  // 而 Spine Editor 需要 `.json`；因此按目标工具选择数据文件名。
+  const dataFileName = godotNaming ? 'skeleton.spine-json' : 'skeleton.json';
+  zip.file(dataFileName, JSON.stringify(skeletonData, null, 2));
+  onProgress?.(t('io.progress.skeletonFileNamed', { filename: dataFileName }));
 
   // ── 4. 绘制并写入图集页面 ────────────────────────────────────────────
   const pageFileNames = pages.map((_, i) => (i === 0 ? `${BASE_NAME}.png` : `${BASE_NAME}${i + 1}.png`));
@@ -293,12 +299,33 @@ function buildSpineJson(project, availablePartIds = null) {
   // 画布坐标（Y 向下）→ Spine 世界坐标（Y 向上）
   const toSpineWorld = (p) => ({ x: p.x, y: canvasH - p.y });
 
-  // 相对父骨骼的局部偏移 = 两者世界坐标之差（Y 轴已翻转）
+  // 相对父骨骼的局部偏移。
+  // Spine 的骨骼局部坐标是「在父骨骼本地朝向中」的偏移，而画布里子父关节的
+  // 世界差是画布朝向；父骨骼若带旋转/缩放，必须先用父骨骼累计线性部分的逆
+  // 把该偏移换算到父骨骼本地朝向，最后再翻转 Y。
   const getLocalSpineOffset = (node, parentBoneNode) => {
-    const a = toSpineWorld(worldPivot(node));
-    if (!parentBoneNode) return a;
-    const b = toSpineWorld(worldPivot(parentBoneNode));
-    return { x: a.x - b.x, y: a.y - b.y };
+    const a = worldPivot(node);
+    if (!parentBoneNode) {
+      // 顶层骨骼：直接翻转到 Spine 世界坐标
+      return toSpineWorld(a);
+    }
+    const p = worldPivot(parentBoneNode);
+    let dx = a.x - p.x;
+    let dy = a.y - p.y;
+
+    const wbp = worldMatrices.get(parentBoneNode.id);
+    if (wbp) {
+      const det = wbp[0] * wbp[4] - wbp[1] * wbp[3];
+      if (Math.abs(det) > 1e-8) {
+        const inv = 1 / det;
+        const lx = ( wbp[4] * dx - wbp[3] * dy) * inv;
+        const ly = (-wbp[1] * dx + wbp[0] * dy) * inv;
+        dx = lx;
+        dy = ly;
+      }
+    }
+    // 画布 Y 向下 → Spine Y 向上
+    return { x: dx, y: -dy };
   };
 
 
@@ -370,15 +397,28 @@ function buildSpineJson(project, availablePartIds = null) {
 
   // ── 4. Skins ──────────────────────────────────────────────────────────────
   // Spine 的附件几何（region 的 x/y、mesh 的 vertices）都是「相对所属骨骼」的
-  // 局部坐标，并且会随骨骼旋转一起旋转。因此必须把部件从「画布局部空间」先经
-  // 世界矩阵，再用所属骨骼世界矩阵的逆变换到骨骼局部空间，最后翻转 Y
-  // （Stretchy Studio 为 Y 向下，Spine 为 Y 向上）。
+  // 局部坐标：先经部件的世界矩阵得到画布世界点，再减去所属骨骼的轴心，
+  // 最后翻转 Y（Stretchy Studio 为 Y 向下，Spine 为 Y 向上）。
   //
-  // 若直接把画布绝对坐标写进 vertices：① 骨骼旋转（动画）时部件会绕画布原点
-  // 乱飞；② 整体上下颠倒。这是实机联调中「部件消失 / 角色倒立」的根因。
+  // 常见坑：
+  //  ① 直接写画布绝对坐标 → 角色上下颠倒；且骨骼旋转时部件绕画布原点乱飞；
+  //  ② 只做 Y 翻转、却不减去骨骼轴心 → 每个部件被自己的骨骼轴心平移一次，
+  //     结果按骨骼分组“散开”（每个骨骼一组）。
   const skinAttachments = {};
 
-  /** 返回「部件局部 → 所属骨骼局部」的 3×3 矩阵（画布坐标，Y 仍向下） */
+  /** 应用 3×3 仿射矩阵到点（列主序） */
+  const applyMat = (m, x, y) => ({
+    x: m[0] * x + m[3] * y + m[6],
+    y: m[1] * x + m[4] * y + m[7],
+  });
+
+  /**
+   * 返回「部件局部 → 所属骨骼本地坐标系」的 3×3 矩阵（画布坐标，Y 仍向下）。
+   *
+   * 骨骼本地系 = 以骨骼轴心为原点、且与画布同向（不含骨骼自身旋转）的坐标系。
+   * 注意必须用 `Wb⁻¹` 做完整逆变换，而不是简单的世界坐标相减：骨骼带旋转/缩放时
+   * 两者不同，直接相减会让部件在骨骼旋转后位置错乱。
+   */
   const boneLocalMatrix = (part, boneNode) => {
     const wp = worldMatrices.get(part.id) ?? mat3Identity();
     if (!boneNode) return wp;
@@ -387,17 +427,21 @@ function buildSpineJson(project, availablePartIds = null) {
     return mat3Mul(mat3Inverse(wb), wp);
   };
 
-  /** 应用 3×3 仿射矩阵到点（列主序） */
-  const applyMat = (m, x, y) => ({
-    x: m[0] * x + m[3] * y + m[6],
-    y: m[1] * x + m[4] * y + m[7],
+  /** 骨骼在「自身本地坐标系」中的轴心（即节点自己的 pivot） */
+  const localPivot = (node) => ({
+    x: node?.transform?.pivotX ?? 0,
+    y: node?.transform?.pivotY ?? 0,
   });
 
   for (const part of parts) {
     const boneNode = resolveBoneNode(part);
-    const m = boneLocalMatrix(part, boneNode); // 部件局部 → 骨骼局部（画布空间）
+    const m = boneLocalMatrix(part, boneNode); // 部件局部 → 骨骼本地（画布朝向）
+    const pv = localPivot(boneNode);
     const imgW = part.imageWidth ?? canvasW;
     const imgH = part.imageHeight ?? canvasH;
+
+    /** 骨骼本地坐标 → Spine 顶点：以轴心为原点，并翻转 Y（Spine 为 Y 向上） */
+    const toSpineVertex = (u) => ({ x: u.x - pv.x, y: -(u.y - pv.y) });
 
     const attachment = {
       type: "region",
@@ -417,9 +461,9 @@ function buildSpineJson(project, availablePartIds = null) {
       // 否则生成的是对象数组，Spine 运行时解析会崩溃。
       const flatVertices = [];
       for (const v of part.mesh.vertices ?? []) {
-        const p = applyMat(m, v?.x ?? 0, v?.y ?? 0);
-        // Y 翻转：Spine 为 Y 向上
-        flatVertices.push(p.x, -p.y);
+        const u = applyMat(m, v?.x ?? 0, v?.y ?? 0); // 骨骼本地坐标
+        const s = toSpineVertex(u);
+        flatVertices.push(s.x, s.y);
       }
       attachment.vertices = flatVertices;
       // uvs / triangles 可能是 TypedArray，统一转成普通数组以保证 JSON 序列化正确
@@ -436,10 +480,11 @@ function buildSpineJson(project, availablePartIds = null) {
       }
       attachment.triangles = flatTriangles;
     } else {
-      // 非网格附件：图片以中心为锚点，换算到骨骼局部并翻转 Y
-      const c = applyMat(m, imgW / 2, imgH / 2);
-      attachment.x = c.x;
-      attachment.y = -c.y;
+      // 非网格附件：图片以中心为锚点，换算到骨骼本地并翻转 Y
+      const u = applyMat(m, imgW / 2, imgH / 2);
+      const s = toSpineVertex(u);
+      attachment.x = s.x;
+      attachment.y = s.y;
     }
 
     const slotKey = sanitizeName(part.name);

@@ -77,6 +77,10 @@ export default {
     spineStep2Prefix: 'In Spine, go to',
     spineStep3Prefix: 'Select the',
     spineStep3Suffix: 'file from the unzipped folder',
+    spineGodotNaming: 'Name skeleton file skeleton.spine-json (for Godot)',
+    spineGodotNamingHint: 'spine-godot only recognizes the .spine-json extension. Turn this off if you are importing into the Spine editor (uses skeleton.json).',
+    spineAtlasPageSize: 'Atlas page size: {size}px (larger keeps it on a single page)',
+    spineAtlasStaleWarning: '⚠️ Old code is running (atlas {size}px, will split into multiple pages and Godot will miss textures). Restart the dev server, or rebuild and hard-refresh (Ctrl+F5).',
     // 校验与状态
     jpgWarning: "JPG doesn't support transparency — pixels will be black.",
     exportFailedLabel: 'Export failed:',
@@ -206,6 +210,7 @@ export default {
     writingAtlasPage: 'Writing atlas page {filename}...',
     packingImage: 'Packing image: {filename}',
     generatingZip: 'Generating ZIP...',
+    skeletonFileNamed: 'Skeleton data written: {filename}',
     packingFile: 'Packing {animName}/{filename}',
     writingFile: 'Writing {animName}/{filename}',
     compositingCharacter: 'Compositing character…',

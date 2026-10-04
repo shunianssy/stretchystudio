@@ -77,6 +77,10 @@ export default {
     spineStep2Prefix: '在 Spine 中，进入',
     spineStep3Prefix: '从解压后的文件夹中选择',
     spineStep3Suffix: '文件',
+    spineGodotNaming: '骨架文件命名为 skeleton.spine-json（Godot 用）',
+    spineGodotNamingHint: 'spine-godot 只识别 .spine-json 扩展名；若你要导入 Spine 编辑器，请关闭此项（用 skeleton.json）。',
+    spineAtlasPageSize: '图集单页尺寸：{size}px（越大越能保证单页）',
+    spineAtlasStaleWarning: '⚠️ 检测到运行的是旧版代码（图集 {size}px，会拆成多页，Godot 会缺贴图）。请重启开发服务器或在重新构建后强制刷新页面（Ctrl+F5）。',
     // 校验与状态
     jpgWarning: 'JPG 不支持透明度 —— 像素将变为黑色。',
     exportFailedLabel: '导出失败：',
@@ -206,6 +210,7 @@ export default {
     writingAtlasPage: '正在写入图集页面 {filename}…',
     packingImage: '正在打包图像：{filename}',
     generatingZip: '正在生成 ZIP…',
+    skeletonFileNamed: '骨架数据已写入：{filename}',
     packingFile: '正在打包 {animName}/{filename}',
     writingFile: '正在写入 {animName}/{filename}',
     compositingCharacter: '正在合成角色…',

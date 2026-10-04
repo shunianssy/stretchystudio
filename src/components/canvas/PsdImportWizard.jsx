@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Circle, Scissors } from 'lucide-react';
 import {
   loadDWPoseSession, runDWPose, buildArmatureNodes, analyzeGroups,
   matchTag, estimateSkeletonFromBounds, DWPOSE_URL, clearDWPoseSession,
   KNOWN_TAGS, autoRearrangeLayers,
 } from '../../io/armatureOrganizer';
-import { splitLayerLR } from '../../io/splitLR';
+import { splitLayerLR, hasSideSuffix, SPLIT_CANDIDATES } from '../../io/splitLR';
 import { HelpIcon } from '../ui/help-icon';
 import { useToast } from '../../hooks/use-toast';
 import { useTranslation } from '@/i18n';
@@ -45,6 +45,8 @@ const LIVERIG_GROUP_KEYS = {
   Other: 'other',
 };
 
+/** 可能被合并成单层、需要左右拆分的对称部件基名（定义在 io/splitLR.js，便于单测） */
+
 export default function PsdImportWizard({
   step,
   onSetStep,
@@ -76,11 +78,15 @@ export default function PsdImportWizard({
   const { psdW, psdH, layers, partIds } = pendingPsd || {};
 
   /* ── Effective layers: apply tag overrides by renaming to canonical tag ── */
-  const effectiveLayers = layers
-    ? layers.map(l =>
-      tagOverrides[l.name] ? { ...l, name: tagOverrides[l.name] } : l
-    )
-    : [];
+  const effectiveLayers = useMemo(
+    () =>
+      layers
+        ? layers.map(l =>
+          tagOverrides[l.name] ? { ...l, name: tagOverrides[l.name] } : l
+        )
+        : [],
+    [layers, tagOverrides]
+  );
 
   const matchCount = effectiveLayers.filter(l => matchTag(l.name) !== null).length;
   const unmatchedLayers = layers
@@ -93,14 +99,13 @@ export default function PsdImportWizard({
   const tooFew = matchCount < 4;
 
   /* ── Detect merged parts (left/right present but no -l or -r) ── */
-  const SPLIT_CANDIDATES = ['handwear', 'legwear', 'footwear', 'irides', 'eyebrow', 'eyewhite', 'eyelash', 'ears'];
-  
-  const mergedTagsToSplit = effectiveLayers ? SPLIT_CANDIDATES.filter(baseTag => {
+  const mergedTagsToSplit = useMemo(() => SPLIT_CANDIDATES.filter(baseTag => {
     const hasBase = effectiveLayers.some(l => matchTag(l.name) === baseTag);
-    const hasL = effectiveLayers.some(l => matchTag(l.name) === `${baseTag}-l`);
-    const hasR = effectiveLayers.some(l => matchTag(l.name) === `${baseTag}-r`);
+    // 用图层名的显式后缀判断（不能用 matchTag，见 hasSideSuffix 注释）
+    const hasL = (layers ?? []).some(l => hasSideSuffix(l.name, baseTag, 'l'));
+    const hasR = (layers ?? []).some(l => hasSideSuffix(l.name, baseTag, 'r'));
     return hasBase && !hasL && !hasR;
-  }) : [];
+  }), [effectiveLayers, layers]);
 
   const partsMerged = mergedTagsToSplit.length > 0;
 
@@ -127,7 +132,7 @@ export default function PsdImportWizard({
       if (mergedIdx === -1) continue;
 
       const mergedLayer = effectiveLayers[mergedIdx];
-      const result = splitLayerLR(mergedLayer, psdW, psdH);
+      const result = splitLayerLR(mergedLayer);
 
       if (!result.right && !result.left) {
         failedMsgs.push(baseTag);
@@ -168,7 +173,7 @@ export default function PsdImportWizard({
     }
 
     return splits;
-  }, [effectiveLayers, mergedTagsToSplit, psdW, psdH, toast, t]);
+  }, [effectiveLayers, mergedTagsToSplit, toast, t]);
 
   /* ── Handle manual rigging (bounding-box heuristic) ────────────────────── */
   const handleRigManually = useCallback(async () => {

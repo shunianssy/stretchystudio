@@ -7,6 +7,7 @@ import { computePoseOverrides, computeParameterDrivenOverrides, KEYFRAME_PROPS, 
 import { useParameterStore } from '@/store/parameterStore';
 import { ScenePass } from '@/renderer/scenePass';
 import { importPsd } from '@/io/psd';
+import { computeLimbWeights } from '@/mesh/limbWeights';
 import {
   detectCharacterFormat, matchTag,
 } from '@/io/armatureOrganizer';
@@ -1031,26 +1032,11 @@ export default function CanvasViewport({
               if (jointBone) {
                 const jx = jointBone.transform.pivotX;
                 const jy = jointBone.transform.pivotY;
-
-                // Build a direction vector from the shoulder (parentGroup pivot) → elbow (jointBone pivot).
-                // Projecting vertices onto this axis gives correct weights regardless of arm orientation.
                 const sx = parentGroup.transform.pivotX;
                 const sy = parentGroup.transform.pivotY;
-                const axDx = jx - sx;
-                const axDy = jy - sy;
-                const axLen = Math.sqrt(axDx * axDx + axDy * axDy) || 1;
-                const axX = axDx / axLen;
-                const axY = axDy / axLen;
 
-                // Blend zone: 40px centred on the elbow pivot along the arm axis
-                const blend = 40;
-                node.mesh.boneWeights = vertices.map(v => {
-                  // Signed distance of vertex past the elbow pivot (along arm axis)
-                  const proj2 = (v.x - jx) * axX + (v.y - jy) * axY;
-                  // proj2 < 0 → upper arm (rigid to shoulder), > 0 → lower arm (follows elbow)
-                  const w = proj2 / blend + 0.5;
-                  return Math.max(0, Math.min(1, w));
-                });
+                // 权重计算抽到共享函数里，保证与「拖动关节时用当前轴心重算」用的是同一套公式
+                node.mesh.boneWeights = computeLimbWeights(vertices, sx, sy, jx, jy);
                 node.mesh.jointBoneId = jointBone.id;
                 console.log(`[Skinning] ${node.name} → ${childRole} (${vertices.length} verts, pivot ${jx.toFixed(0)},${jy.toFixed(0)})`);
               }
