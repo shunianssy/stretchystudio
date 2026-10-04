@@ -41,7 +41,7 @@ export function PreferencesModal({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden outline-none border-none shadow-2xl">
+      <DialogContent className="max-w-2xl p-0 overflow-hidden outline-none border-none shadow-lg">
         <div className="flex flex-col h-[500px]">
           <DialogHeader className="p-6 pb-2 border-b">
             <DialogTitle className="flex items-center gap-2 text-xl">
@@ -163,24 +163,16 @@ export function PreferencesModal({ open, onOpenChange }) {
               </TabsContent>
 
               <TabsContent value="about" className="mt-0 space-y-6">
-                <div className="space-y-4 text-center py-4">
-                  <div className="flex justify-center mb-2">
-                    <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                      <Layout className="w-10 h-10 text-primary-foreground" />
-                    </div>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Stretchy Studio</h2>
-                    <p className="text-sm text-muted-foreground font-mono">{t('io.preferences.version', { version: '0.2' })}</p>
-                  </div>
-                  <p className="max-w-xs mx-auto text-sm text-balance">
+                <div className="space-y-2 text-center py-4">
+                  <h2 className="text-2xl font-bold tracking-tight">Plianca Studio</h2>
+                  <p className="text-sm text-muted-foreground font-mono">{t('io.preferences.version', { version: '0.2' })}</p>
+                  <p className="max-w-sm mx-auto text-sm text-balance text-muted-foreground">
                     {t('io.preferences.aboutDesc')}
                   </p>
                 </div>
 
-                <div className="border-t pt-6 bg-primary/5 -mx-6 px-6 pb-6">
-                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <div className="border-t pt-6 bg-muted/30 -mx-6 px-6 pb-6">
+                  <h4 className="text-sm font-semibold mb-2">
                     {t('io.preferences.ecosystem')}
                   </h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
@@ -189,7 +181,14 @@ export function PreferencesModal({ open, onOpenChange }) {
                       See-through
                     </a> {t('io.preferences.ecosystemDescSuffix')}
                   </p>
-                  <div className="flex gap-2">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
+                    {t('io.preferences.originalProjectPrefix')}
+                    <a href="https://github.com/MangoLion/stretchystudio" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                      MangoLion/stretchystudio
+                    </a>
+                    {t('io.preferences.originalProjectSuffix')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5" asChild>
                       <a href="https://github.com/shitagaki-lab/see-through" target="_blank" rel="noopener noreferrer">
                         {t('io.preferences.seeThroughRepo')}
@@ -198,6 +197,11 @@ export function PreferencesModal({ open, onOpenChange }) {
                     <Button variant="default" size="sm" className="h-7 text-[10px] gap-1.5" asChild>
                       <a href="https://huggingface.co/spaces/24yearsold/see-through-demo" target="_blank" rel="noopener noreferrer">
                         {t('io.preferences.freeSpace')}
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5" asChild>
+                      <a href="https://github.com/MangoLion/stretchystudio" target="_blank" rel="noopener noreferrer">
+                        {t('io.preferences.originalRepo')}
                       </a>
                     </Button>
                   </div>

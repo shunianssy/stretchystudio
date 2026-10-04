@@ -4,7 +4,7 @@
  * Port of scripts/cmo3_generate.py — generates a .cmo3 that opens
  * in Cubism Editor 5.0 WITHOUT "recovered" status.
  *
- * Supports N meshes with real texture data from Stretchy Studio.
+ * Supports N meshes with real texture data from Plianca Studio.
  *
  * The texture pipeline replicates Cubism Editor 5.0's own format:
  *   CLayeredImage → CLayer → CModelImage (filter env) → CImageResource
@@ -82,7 +82,7 @@ import { emitPhysicsSettings } from './cmo3/physics.js';
  * @property {MeshInfo[]} meshes - Array of mesh data
  * @property {GroupInfo[]} [groups=[]] - Group nodes (become CPartSource)
  * @property {ParamInfo[]} [parameters=[]] - Parameters
- * @property {string} [modelName='StretchyStudio Export']
+ * @property {string} [modelName='Plianca Studio Export']
  * @property {boolean} [generateRig=false] - Add standard Live2D parameter IDs
  */
 
@@ -98,7 +98,7 @@ export async function generateCmo3(input) {
     groups = [], parameters = [],
     warpDeformerNodes = [],
     animations = [],
-    modelName = 'StretchyStudio Export',
+    modelName = 'Plianca Studio Export',
     generateRig = false,
     // Physics: emits CPhysicsSettingsSourceSet (hair/skirt pendulums). Off by
     // default when generateRig is off — physics references rig-only params.

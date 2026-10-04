@@ -12,7 +12,7 @@ export default {
     stretchTag: '.stretch',
     dropOr: ' 或 ',
     psdPngTag: 'PSD/PNG',
-    subtitle: '数秒内完成角色绑定与动画。',
+    subtitle: '导入 PSD，自动绑定骨骼，然后在时间轴上制作动画。',
     noPsdTitle: '还没有分层的 PSD？',
     layerify: '将你的图片图层化',
     freeSpace: '（免费的 HuggingFace Space）',

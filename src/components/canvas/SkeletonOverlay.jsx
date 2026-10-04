@@ -21,6 +21,7 @@ import { computePoseOverrides } from '@/renderer/animationEngine';
 import { useToast } from '@/hooks/use-toast';
 import { beginBatch, endBatch } from '@/store/undoHistory';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 
 // Colour palette
 const COLOUR_NORMAL = '#ef4444';      // red — not in edit mode
@@ -91,7 +92,7 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
   useEffect(() => { setDraftPoseRef.current = setDraftPose; }, [setDraftPose]);
 
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   useEffect(() => {
     if (selection.length !== 1) return;
     const nodeId = selection[0];
@@ -489,10 +490,11 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       />
     );
     if (skeletonEditMode) {
-      // Label under each joint in edit mode for orientation
+      // Label under each joint in edit mode for orientation（关节名仅显示本地化）
+      const displayRole = labelFor(role, lang);
       const labelY = cy + radius + 11;
       const charWidth = 5.4; // estimate for small font
-      const labelWidth = role.length * charWidth + 8;
+      const labelWidth = displayRole.length * charWidth + 8;
       const labelHeight = 13;
 
       circles.push(
@@ -512,7 +514,7 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
             fill="white" pointerEvents="none"
             style={{ userSelect: 'none', fontWeight: 500 }}
           >
-            {role}
+            {displayRole}
           </text>
         </g>
       );

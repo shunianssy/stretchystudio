@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 import { useProjectStore } from '@/store/projectStore';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,7 @@ import { Grid2x2 } from 'lucide-react';
  * when the warp deformer is selected.
  */
 export function WarpDeformerPanel({ node }) {
-  const { t } = useTranslation(); // 组件内订阅语言
+  const { t, lang } = useTranslation(); // 组件内订阅语言
   const parameters    = useProjectStore(s => s.project.parameters);
   const animations    = useProjectStore(s => s.project.animations);
   const allNodes      = useProjectStore(s => s.project.nodes);
@@ -150,7 +151,7 @@ export function WarpDeformerPanel({ node }) {
         >
           <option value="">{t('panels.warpDeformer.noneOption')}</option>
           {parameters.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+            <option key={p.id} value={p.id}>{labelFor(p.name, lang)} ({p.id})</option>
           ))}
         </select>
       </div>

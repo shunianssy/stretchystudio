@@ -1,7 +1,7 @@
 /**
  * Live2D Cubism export — main entry point.
  *
- * Converts a Stretchy Studio project into a set of Live2D Cubism files:
+ * Converts a Plianca Studio project into a set of Live2D Cubism files:
  *   - *.model3.json  (manifest)
  *   - *.moc3          (binary model)
  *   - *.cdi3.json     (display info — human-readable names)

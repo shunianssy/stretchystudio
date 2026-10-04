@@ -114,7 +114,7 @@ export async function generateCan3(input) {
   const {
     animations, deformerParamMap,
     cmo3FileName, canvasW, canvasH,
-    modelName = 'StretchyStudio Export',
+    modelName = 'Plianca Studio Export',
   } = input;
 
   const x = new XmlBuilder();

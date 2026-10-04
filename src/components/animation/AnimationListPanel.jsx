@@ -11,22 +11,83 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Pencil, Trash2, Check, X, Wand2, Sparkles } from 'lucide-react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
+import { useToast } from '@/hooks/use-toast';
+import {
+  MOTION_PRESETS,
+  buildPresetAnimation,
+  buildAllPresetAnimations,
+} from '@/io/motionPresets';
 
 export function AnimationListPanel() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const proj = useProjectStore(s => s.project);
   const createAnimation = useProjectStore(s => s.createAnimation);
   const renameAnimation = useProjectStore(s => s.renameAnimation);
   const deleteAnimation = useProjectStore(s => s.deleteAnimation);
+  const updateProject = useProjectStore(s => s.updateProject);
+  const { toast } = useToast();
 
   const activeAnimationId = useAnimationStore(s => s.activeAnimationId);
   const switchAnimation = useAnimationStore(s => s.switchAnimation);
+  const setLoop = useAnimationStore(s => s.setLoop);
 
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  /**
+   * 添加单个预设动作：基于当前骨骼生成轨道，写入项目并自动切换过去。
+   * @param {string} presetId MOTION_PRESETS[].id
+   */
+  const handleAddPreset = useCallback((presetId) => {
+    const anim = buildPresetAnimation(proj.nodes, presetId, {
+      existingNames: proj.animations.map(a => a.name),
+    });
+    if (!anim) {
+      toast({
+        title: t('timeline.animationList.presetFailed'),
+        description: t('timeline.animationList.presetFailedDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    updateProject((p) => { p.animations.push(anim); });
+    switchAnimation(anim);
+    // 按预设建议设置循环（循环动作开启，单次动作关闭）
+    const preset = MOTION_PRESETS.find(p => p.id === presetId);
+    setLoop(preset ? preset.loop : true);
+  }, [proj, updateProject, switchAnimation, setLoop, toast, t]);
+
+  /**
+   * 一键添加全部预设动作：批量生成后切换到第一个（待机），方便立即预览。
+   */
+  const handleAddAllPresets = useCallback(() => {
+    const anims = buildAllPresetAnimations(proj.nodes, {
+      existingNames: proj.animations.map(a => a.name),
+    });
+    if (anims.length === 0) {
+      toast({
+        title: t('timeline.animationList.presetFailed'),
+        description: t('timeline.animationList.presetFailedDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    updateProject((p) => { p.animations.push(...anims); });
+    switchAnimation(anims[0]);
+    setLoop(MOTION_PRESETS[0]?.loop ?? true);
+  }, [proj, updateProject, switchAnimation, setLoop, toast, t]);
 
   const handleCreate = () => {
     createAnimation();
@@ -70,15 +131,49 @@ export function AnimationListPanel() {
       {/* Header */}
       <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between bg-muted/30">
         <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('timeline.animationList.title')}</h2>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-5 w-5 hover:bg-muted" 
-          onClick={handleCreate}
-          title={t('timeline.animationList.createNew')}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          {/* 预设动作菜单：按骨骼一键生成常见动作 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 hover:bg-muted"
+                title={t('timeline.animationList.presets')}
+              >
+                <Wand2 className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={handleAddAllPresets} className="text-xs">
+                <Sparkles className="mr-1.5 h-3 w-3" />
+                {t('timeline.animationList.presetAddAll')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {t('timeline.animationList.presets')}
+              </DropdownMenuLabel>
+              {MOTION_PRESETS.map((preset) => (
+                <DropdownMenuItem
+                  key={preset.id}
+                  onClick={() => handleAddPreset(preset.id)}
+                  className="text-xs"
+                >
+                  {labelFor(preset.name, lang)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 hover:bg-muted"
+            onClick={handleCreate}
+            title={t('timeline.animationList.createNew')}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
 
       {/* List */}
@@ -121,7 +216,7 @@ export function AnimationListPanel() {
                 ) : (
                   <>
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-xs font-medium truncate">{anim.name}</p>
+                      <p className="text-xs font-medium truncate">{labelFor(anim.name, lang)}</p>
                       <p className="text-[9px] text-muted-foreground leading-none mt-0.5">
                         {(anim.duration / 1000).toFixed(1)}s · {anim.fps}fps
                       </p>

@@ -14,6 +14,7 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { Eye, EyeOff, Copy, Trash2, FolderPlus, LogOut } from 'lucide-react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 import { useProjectStore } from '@/store/projectStore';
 import { useEditorStore } from '@/store/editorStore';
 import {
@@ -68,8 +69,11 @@ function ChevronIcon({ open }) {
 /* ── DRAW ORDER Tab ──────────────────────────────────────────────────────── */
 
 function DepthTabRow({ node, parentGroup, isSelected, onSelect, onToggleVisible, onDragStart, onDragOver, onDrop, isDragOver }) {
-  const { t } = useTranslation(); // 子组件内单独订阅语言
+  const { t, lang } = useTranslation(); // 子组件内单独订阅语言
   const isVisible = node.visible !== false;
+  // 节点名/组名仅做显示本地化，数据保持英文
+  const displayName = labelFor(node.name || node.id, lang);
+  const displayGroupName = parentGroup ? labelFor(parentGroup.name, lang) : '';
 
   return (
     <div
@@ -96,18 +100,18 @@ function DepthTabRow({ node, parentGroup, isSelected, onSelect, onToggleVisible,
       </span>
 
       {/* Name */}
-      <span className="flex-1 truncate font-mono text-xs" title={node.name || node.id}>
-        {node.name || node.id}
+      <span className="flex-1 truncate font-mono text-xs" title={displayName}>
+        {displayName}
       </span>
 
       {/* Group chip */}
       {parentGroup && (
         <button
           className="shrink-0 text-[9px] px-1 py-0.5 rounded border border-primary/30 text-primary/70 bg-primary/10 hover:bg-primary/20 leading-none"
-          title={t('panels.layers.inGroup', { name: parentGroup.name })}
+          title={t('panels.layers.inGroup', { name: displayGroupName })}
           onClick={(e) => { e.stopPropagation(); onSelect(parentGroup.id); }}
         >
-          {parentGroup.name}
+          {displayGroupName}
         </button>
       )}
 
@@ -131,9 +135,11 @@ function GroupsTreeRow({
   onSelect, onToggleExpand, onToggleVisible,
   onDragStart, onDragOver, onDrop, isDragOver,
 }) {
-  const { t } = useTranslation(); // 子组件内单独订阅语言
+  const { t, lang } = useTranslation(); // 子组件内单独订阅语言
   const indent = depth * 14;
   const isVisible = node.visible !== false;
+  // 仅显示本地化，数据保持英文
+  const displayName = labelFor(node.name || node.id, lang);
 
   return (
     <div
@@ -175,8 +181,8 @@ function GroupsTreeRow({
       </span>
 
       {/* Name */}
-      <span className="flex-1 truncate font-mono text-xs" title={node.name || node.id}>
-        {node.name || node.id}
+      <span className="flex-1 truncate font-mono text-xs" title={displayName}>
+        {displayName}
       </span>
 
       {/* Visibility Toggle */}

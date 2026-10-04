@@ -12,7 +12,7 @@ export default {
     stretchTag: '.stretch',
     dropOr: ' or ',
     psdPngTag: 'PSD/PNG',
-    subtitle: 'Character rigging and animation in seconds.',
+    subtitle: 'Import a PSD, auto-rig the skeleton, then animate on the timeline.',
     noPsdTitle: "Don't have a layered PSD?",
     layerify: 'LAYER-IFY YOUR IMAGE',
     freeSpace: '(Free HuggingFace Space)',

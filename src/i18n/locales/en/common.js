@@ -4,7 +4,7 @@
  * 各分组命名空间可直接引用 common.* 以避免重复定义通用词汇。
  */
 export default {
-  appTitle: 'Stretchy Studio | Rig & Animate SOTA Character Models',
+  appTitle: 'Plianca Studio | 2D Rigging & Animation',
   ok: 'OK',
   cancel: 'Cancel',
   confirm: 'Confirm',

@@ -259,7 +259,7 @@ export default function EditorLayout() {
       {/* Top bar */}
       <header className="h-10 border-b flex items-center px-4 shrink-0 bg-card gap-3 relative">
         <div className="flex items-center gap-3 h-full">
-          <span className="font-semibold text-sm select-none tracking-tight">Stretchy Studio</span>
+          <span className="font-semibold text-sm select-none tracking-tight">Plianca Studio</span>
           <span className="text-xs text-muted-foreground border border-border/50 px-1.5 py-0.5 font-mono">v0.2</span>
 
           <div className="flex h-full items-stretch border-l border-r ml-1 mr-2">
@@ -320,7 +320,7 @@ export default function EditorLayout() {
                   <SquareChartGantt className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-4 space-y-3 shadow-2xl border-border/60">
+              <PopoverContent className="w-64 p-4 space-y-3 shadow-lg border-border/60">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('editor.canvasProps.title')}
                 </p>
@@ -465,7 +465,7 @@ export default function EditorLayout() {
                     className={cn(
                       'px-3 py-1 rounded-md text-[13px] font-semibold transition-all flex items-center gap-1.5',
                       !isAnimationMode
-                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -487,7 +487,7 @@ export default function EditorLayout() {
                     className={cn(
                       'px-3 py-1 rounded-md text-[13px] font-semibold transition-all flex items-center gap-1.5 ml-0.5',
                       isAnimationMode
-                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >

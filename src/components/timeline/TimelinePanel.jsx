@@ -23,6 +23,7 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 
 /* ──────────────────────────────────────────────────────────────────────────
    Constants
@@ -266,7 +267,7 @@ function AudioTrackModal({ track, animation, update, isOpen, onClose }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-card border-border shadow-2xl">
+      <DialogContent className="max-w-md bg-card border-border shadow-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Music className="w-5 h-5 text-primary" />
@@ -686,7 +687,7 @@ function AudioTrackRow({
    TimelinePanel — main component
 ────────────────────────────────────────────────────────────────────────── */
 export function TimelinePanel() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const anim = useAnimationStore();
   const proj = useProjectStore(s => s.project);
   const update = useProjectStore(s => s.updateProject);
@@ -1348,8 +1349,8 @@ export function TimelinePanel() {
 
         {/* Animation name / selector */}
         {animation && (
-          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]" title={animation.name}>
-            {animation.name}
+          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]" title={labelFor(animation.name, lang)}>
+            {labelFor(animation.name, lang)}
           </span>
         )}
 
@@ -1456,9 +1457,9 @@ export function TimelinePanel() {
                 <div
                   className="flex items-center px-2 border-r border-border/30 shrink-0 text-muted-foreground overflow-hidden sticky left-0 z-30 bg-card shadow-[1px_0_2px_rgba(0,0,0,0.1)]"
                   style={{ width: LABEL_W, minWidth: LABEL_W }}
-                  title={row.name}
+                  title={labelFor(row.name, lang)}
                 >
-                  <span className="truncate">{row.name}</span>
+                  <span className="truncate">{labelFor(row.name, lang)}</span>
                 </div>
 
                 {/* Keyframe diamonds — padded inner wrapper */}

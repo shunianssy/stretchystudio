@@ -60,7 +60,7 @@ export function ArmaturePanel() {
               <span className="leading-none">{editorState.skeletonEditMode ? t('common.done') : t('common.edit')}</span>
               
               {editorState.skeletonEditMode && (
-                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-yellow-500" />
               )}
             </button>
           )}

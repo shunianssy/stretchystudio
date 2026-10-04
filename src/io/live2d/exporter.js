@@ -26,7 +26,7 @@ import { t } from '@/i18n';
  */
 
 /**
- * Export a Stretchy Studio project as a Live2D Cubism model in a ZIP file.
+ * Export a Plianca Studio project as a Live2D Cubism model in a ZIP file.
  *
  * @param {object} project - projectStore.project snapshot
  * @param {Map<string, HTMLImageElement>} images - Loaded texture images
@@ -150,7 +150,7 @@ export async function exportLive2D(project, images, opts = {}) {
 }
 
 /**
- * Export a Stretchy Studio project as a .cmo3 (Cubism Editor project file).
+ * Export a Plianca Studio project as a .cmo3 (Cubism Editor project file).
  *
  * Unlike the runtime export (.moc3 + atlas), the project export gives each
  * mesh its own texture PNG inside a CAFF archive, so the model can be further

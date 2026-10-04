@@ -33,9 +33,10 @@ import {
 import { exportLive2D, exportLive2DProject } from '@/io/live2d';
 import { PhysicsPanel } from '@/components/physics/PhysicsPanel';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 
 export function ExportModal({ open, onClose, captureRef, projectName, projectId }) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   // Form state
   const [type, setType] = useState('sequence');
   const [format, setFormat] = useState('png');
@@ -580,7 +581,7 @@ export function ExportModal({ open, onClose, captureRef, projectName, projectId 
                     {project.animations.length > 0 && <SelectItem value="current">{t('io.export.animCurrent')}</SelectItem>}
                     {project.animations.map(a => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.name}
+                        {labelFor(a.name, lang)}
                       </SelectItem>
                     ))}
                     {project.animations.length > 1 && (

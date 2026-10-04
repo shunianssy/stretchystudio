@@ -4,7 +4,7 @@
  * 各分组命名空间可直接引用 common.* 以避免重复定义通用词汇。
  */
 export default {
-  appTitle: 'Stretchy Studio | 绑定与动画化 SOTA 角色模型',
+  appTitle: 'Plianca Studio | 2D 绑定与动画工具',
   ok: '确定',
   cancel: '取消',
   confirm: '确认',

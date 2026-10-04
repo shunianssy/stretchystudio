@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 import { useProjectStore } from '@/store/projectStore';
 import { useParameterStore } from '@/store/parameterStore';
 import { Slider } from '@/components/ui/slider';
@@ -16,7 +17,7 @@ import { Plus, Trash2, ChevronDown, ChevronRight, Link } from 'lucide-react';
  * or changing any other animatable property in real-time.
  */
 export function ParametersPanel() {
-  const { t } = useTranslation(); // 组件顶层订阅语言
+  const { t, lang } = useTranslation(); // 组件顶层订阅语言
   const parameters = useProjectStore(s => s.project.parameters);
   const animations  = useProjectStore(s => s.project.animations);
   const nodes       = useProjectStore(s => s.project.nodes);
@@ -77,7 +78,7 @@ export function ParametersPanel() {
                 </button>
 
                 <span className="text-xs font-mono flex-1 truncate" title={param.id}>
-                  {param.name}
+                  {labelFor(param.name, lang)}
                 </span>
 
                 <span className="text-[10px] text-muted-foreground font-mono w-10 text-right tabular-nums shrink-0">
@@ -216,7 +217,7 @@ export function ParametersPanel() {
 
 /** Inline form for adding a new track binding to a parameter. */
 function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
-  const { t } = useTranslation(); // 子组件内单独订阅语言
+  const { t, lang } = useTranslation(); // 子组件内单独订阅语言
   const [animId,   setAnimId]   = React.useState(animations[0]?.id ?? '');
   const [property, setProperty] = React.useState('mesh_verts');
   const [nodeId,   setNodeId]   = React.useState('');
@@ -240,7 +241,7 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
         onChange={e => setAnimId(e.target.value)}
       >
         {animations.length === 0 && <option value="">{t('panels.parameters.noAnimations')}</option>}
-        {animations.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        {animations.map(a => <option key={a.id} value={a.id}>{labelFor(a.name, lang)}</option>)}
       </select>
 
       {/* Property */}
@@ -265,7 +266,7 @@ function AddBindingForm({ animations, nodes, onAdd, onCancel }) {
         onChange={e => setNodeId(e.target.value)}
       >
         <option value="">{t('panels.parameters.selectNode')}</option>
-        {candidateNodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+        {candidateNodes.map(n => <option key={n.id} value={n.id}>{labelFor(n.name, lang)}</option>)}
       </select>
 
       <div className="flex gap-1 justify-end pt-0.5">

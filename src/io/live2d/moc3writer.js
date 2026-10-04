@@ -1,7 +1,7 @@
 /**
  * Minimal .moc3 binary writer for Live2D Cubism export.
  *
- * Generates a valid .moc3 binary file from Stretchy Studio project data.
+ * Generates a valid .moc3 binary file from Plianca Studio project data.
  * The binary layout follows the format documented by py-moc3 and moc3ingbird:
  *
  *   [0..64)      Header: "MOC3" magic + version + endian flag + padding

@@ -1,7 +1,7 @@
 /**
- * Generate .motion3.json files from Stretchy Studio animations.
+ * Generate .motion3.json files from Plianca Studio animations.
  *
- * Stretchy Studio tracks animate node properties (x, y, rotation, scaleX,
+ * Plianca Studio tracks animate node properties (x, y, rotation, scaleX,
  * scaleY, opacity, mesh_verts) with keyframes at specific times.
  *
  * Live2D .motion3.json animates Parameters and Part opacities via "Curves"
@@ -25,7 +25,7 @@
  */
 
 /**
- * Convert a Stretchy Studio animation to .motion3.json format.
+ * Convert a Plianca Studio animation to .motion3.json format.
  *
  * @param {object} animation - From project.animations[]
  * @param {object} [opts]
@@ -109,7 +109,7 @@ export function generateMotion3Json(animation, opts = {}) {
 }
 
 /**
- * Map a Stretchy Studio track to a Live2D curve target + ID.
+ * Map a Plianca Studio track to a Live2D curve target + ID.
  *
  * @param {object} track - { nodeId, property, keyframes }
  * @param {Map<string, string>} parameterMap
@@ -179,7 +179,7 @@ export function encodeKeyframesToSegments(keyframes, durationSec) {
 }
 
 /**
- * Map Stretchy Studio easing names to Live2D segment type codes.
+ * Map Plianca Studio easing names to Live2D segment type codes.
  *
  * @param {string} [easing='linear']
  * @returns {number} 0=linear, 1=bezier, 2=stepped, 3=inverse-stepped

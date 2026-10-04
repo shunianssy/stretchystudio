@@ -9,6 +9,7 @@ import { splitLayerLR } from '../../io/splitLR';
 import { HelpIcon } from '../ui/help-icon';
 import { useToast } from '../../hooks/use-toast';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 
 /** Base ranges for the strength slider — keyed by param id */
 const LIVE_RIG_BASE = {
@@ -62,7 +63,7 @@ export default function PsdImportWizard({
   onWarpStrength,
 }) {
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [rigStatus, setRigStatus] = useState('');
   const [rigStatusIsError, setRigStatusIsError] = useState(false);
   const [rigLoading, setRigLoading] = useState(false);
@@ -272,7 +273,7 @@ export default function PsdImportWizard({
 
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70">
-        <div className="bg-popover border border-border rounded-lg shadow-2xl p-6 max-w-md w-full mx-4 flex flex-col gap-4">
+        <div className="bg-popover border border-border rounded-lg shadow-lg p-6 max-w-md w-full mx-4 flex flex-col gap-4">
           <h3 className="text-base font-semibold text-foreground">{t('canvas.wizard.review.title')}</h3>
 
           {/* Collapsed summary row */}
@@ -327,7 +328,7 @@ export default function PsdImportWizard({
                       className="flex-1 text-[11px] text-muted-foreground truncate"
                       title={layer.name}
                     >
-                      {layer.name}
+                      {labelFor(layer.name, lang)}
                     </span>
 
                     {/* Tag dropdown */}
@@ -343,7 +344,7 @@ export default function PsdImportWizard({
                     >
                       <option value="">{t('canvas.wizard.review.unassigned')}</option>
                       {KNOWN_TAGS.map(tag => (
-                        <option key={tag} value={tag}>{tag}</option>
+                        <option key={tag} value={tag}>{labelFor(tag, lang)}</option>
                       ))}
                     </select>
                   </div>
@@ -456,7 +457,7 @@ export default function PsdImportWizard({
     const modelLoaded = !!onnxSessionRef?.current;
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70">
-        <div className="bg-popover border border-border rounded-lg shadow-2xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+        <div className="bg-popover border border-border rounded-lg shadow-lg p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-1">{t('canvas.wizard.dwpose.title')}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -605,7 +606,7 @@ export default function PsdImportWizard({
 
     return (
       <div className="absolute left-0 top-0 bottom-0 z-40 flex flex-col w-72
-                      bg-popover border-r border-border shadow-2xl
+                      bg-popover border-r border-border shadow-lg
                       animate-in fade-in slide-in-from-left-4 duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -636,7 +637,7 @@ export default function PsdImportWizard({
                   return (
                     <div key={param.id} className="flex items-center gap-2">
                       <span className="text-[11px] text-foreground w-24 shrink-0 truncate" title={param.name}>
-                        {param.name}
+                        {labelFor(param.name, lang)}
                       </span>
                       <input
                         type="range"

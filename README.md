@@ -1,10 +1,10 @@
-# Stretchy Studio
+# Plianca Studio
 
-为「See-Through」SOTA 角色模型进行绑定与动画制作的 2D 工具。
+为「See-Through」角色模型进行绑定与动画制作的 2D 工具。
 
-Stretchy Studio 是一款基于 WebGL 的高性能 2D 动画工具，用于把静态图层转化为网格变形动画。它面向「AI 图层分解（如 See-Through SOTA 模型）」与「动画制作」之间的衔接流程：导入分解完成的 PSD，自动建立骨架，然后直接在时间轴上制作动画。
+Plianca Studio 是一款基于 WebGL 的 2D 动画工具，用于把静态图层转化为网格变形动画。它面向「AI 图层分解（如 See-Through 模型）」与「动画制作」之间的衔接流程：导入分解完成的 PSD，自动建立骨架，然后直接在时间轴上制作动画。
 
-与传统基于骨骼的系统不同，Stretchy Studio 将自动绑定与「以时间轴为先、直接变形」的工作流结合在一起，可以在数秒内把一张平面 PSD 变成完整绑定的角色。
+与传统基于骨骼的系统不同，Plianca Studio 将自动绑定与「以时间轴为先、直接变形」的工作流结合在一起，可以把一张平面 PSD 变成完整绑定的角色。
 
 - 在线编辑器：https://editor.stretchy.studio
 - 官网：https://stretchy.studio
@@ -15,7 +15,7 @@ Stretchy Studio 是一款基于 WebGL 的高性能 2D 动画工具，用于把�
 ## 主要功能
 
 ### 原生支持 See-Through 分解结果
-针对通过 See-Through 等 SOTA 图层分解模型生成的角色做了优化。导入切分好的 PSD 后，Stretchy Studio 会自动处理遮挡关系、深度分层与网格生成。
+针对通过 See-Through 等图层分解模型生成的角色做了优化。导入切分好的 PSD 后，Plianca Studio 会自动处理遮挡关系、深度分层与网格生成。
 
 ### 自动绑定
 使用 DWPose 姿态检测为角色自动生成骨架，或使用内置的启发式方法快速完成绑定。
@@ -34,11 +34,11 @@ Stretchy Studio 是一款基于 WebGL 的高性能 2D 动画工具，用于把�
 
 ## See-Through 工作流
 
-Stretchy Studio 被设计为 [See-Through](https://github.com/shitagaki-lab/see-through) 模型的动画引擎。传统 2D 动画需要手工分层与补全（inpainting），而 See-Through 可以用一张静态插画自动完成这一过程。
+Plianca Studio 被设计为 [See-Through](https://github.com/shitagaki-lab/see-through) 模型的动画引擎。传统 2D 动画需要手工分层与补全（inpainting），而 See-Through 可以用一张静态插画自动完成这一过程。
 
 ### 什么是 See-Through
 
-See-Through 是一个 SOTA 框架，它能把单张动漫插画分解为若干张已完整补全、语义互不重叠的身体部件图层，从而得到一个可操控的角色模型。
+See-Through 是一个图层分解框架，它能把单张动漫插画分解为若干张已完整补全、语义互不重叠的身体部件图层，从而得到一个可操控的角色模型。
 
 - 官方仓库：https://github.com/shitagaki-lab/see-through
 - 学术论文：[See-through: Single-image Layer Decomposition for Anime Characters](https://arxiv.org/abs/2602.03749)
@@ -69,7 +69,7 @@ See-Through 是一个 SOTA 框架，它能把单张动漫插画分解为若干�
 3. 网格：对任意部件点击「生成网格」，即可启用有机弯曲。
 4. 动画：切换到动画模式，创建动画片段并开始打关键帧。
 
-### SOTA 工作流（例如 See-Through）
+### 基于 See-Through 的工作流
 
 1. 导入：把分解好的 See-Through PSD 拖入编辑器。
 2. 自动绑定：启动绑定向导，用 DWPose 把图层映射到骨架结构上。

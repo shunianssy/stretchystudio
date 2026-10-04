@@ -8,7 +8,9 @@
  *  4. Mesh settings: +V/-V buttons (only if mesh exists), collapsible sliders, Remesh button (part only)
  */
 import React, { useCallback, useEffect, useRef } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useAnimationStore } from '@/store/animationStore';
@@ -119,11 +121,90 @@ function NumericInput({ value, onChange, step = 1, precision = 1, className = ''
   );
 }
 
+/* ── Layer order control (parts only) ─────────────────────────────────────── */
+
+/**
+ * 图层顺序调整控件：仅对部件（part）生效。
+ *
+ * draw_order 语义：升序 => 先绘制（更靠后层），降序 => 后绘制（更靠前层）。
+ * 因此“上移”= 提高 draw_order（更靠前），“下移”= 降低 draw_order（更靠后）。
+ * 每次移动后会对所有部件重新编号，确保 draw_order 连续且不重复。
+ */
+function LayerOrderRow({ node }) {
+  const { t } = useTranslation();
+  const nodes = useProjectStore(s => s.project.nodes);
+  const updateProject = useProjectStore(s => s.updateProject);
+
+  // 所有部件按 draw_order 升序（索引越大越靠前）
+  const parts = React.useMemo(
+    () => [...nodes]
+      .filter(n => n.type === 'part')
+      .sort((a, b) => (a.draw_order ?? 0) - (b.draw_order ?? 0)),
+    [nodes]
+  );
+
+  const idx = parts.findIndex(n => n.id === node.id);
+  const total = parts.length;
+  const canMoveUp = idx >= 0 && idx < total - 1; // 前移（上层）
+  const canMoveDown = idx > 0;                    // 后移（下层）
+
+  const move = useCallback((dir) => {
+    updateProject((proj) => {
+      const sorted = proj.nodes
+        .filter(n => n.type === 'part')
+        .sort((a, b) => (a.draw_order ?? 0) - (b.draw_order ?? 0));
+      const i = sorted.findIndex(n => n.id === node.id);
+      const j = dir === 'up' ? i + 1 : i - 1;
+      if (i < 0 || j < 0 || j >= sorted.length) return;
+
+      // 交换相邻部件的顺序，并重新编号保证连续
+      [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
+      sorted.forEach((p, k) => { p.draw_order = k; });
+    });
+  }, [node.id, updateProject]);
+
+  // 组节点或部件数量不足 2 时不显示
+  if (node.type !== 'part' || total < 2) return null;
+
+  // 从顶层开始编号，更符合“图层”直觉（1 = 最前层）
+  const layerFromTop = total - idx;
+
+  return (
+    <Row label={t('panels.inspector.layerOrder')}>
+      <span className="text-[10px] tabular-nums text-muted-foreground mr-1">
+        {layerFromTop}/{total}
+      </span>
+      <div className="flex items-center rounded border border-border overflow-hidden">
+        <button
+          className="px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+          disabled={!canMoveUp}
+          onClick={() => move('up')}
+          title={t('panels.inspector.moveUp')}
+          aria-label={t('panels.inspector.moveUp')}
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+        <button
+          className="px-1.5 py-0.5 border-l border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+          disabled={!canMoveDown}
+          onClick={() => move('down')}
+          title={t('panels.inspector.moveDown')}
+          aria-label={t('panels.inspector.moveDown')}
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </Row>
+  );
+}
+
 /* ── Node details (part or group) ─────────────────────────────────────────── */
 
 function NodeDetails({ node }) {
-  const { t } = useTranslation(); // 组件内订阅语言
+  const { t, lang } = useTranslation(); // 组件内订阅语言
   const updateProject = useProjectStore(s => s.updateProject);
+  // 名称仅显示本地化，数据保持英文
+  const displayName = labelFor(node.name || node.id, lang);
 
   const setOpacity = useCallback((v) => {
     if (useEditorStore.getState().editorMode === 'animation') {
@@ -157,8 +238,8 @@ function NodeDetails({ node }) {
     <div className="space-y-1">
       <SectionTitle>{node.type === 'group' ? t('panels.inspector.group') : t('panels.inspector.part')}</SectionTitle>
       <Row label={t('common.name')}>
-        <span className="text-xs font-mono truncate max-w-[100px] text-right" title={node.name}>
-          {node.name || node.id}
+        <span className="text-xs font-mono truncate max-w-[100px] text-right" title={displayName}>
+          {displayName}
         </span>
       </Row>
       <Row label={t('panels.inspector.visible')}>
@@ -168,6 +249,7 @@ function NodeDetails({ node }) {
           className="scale-75 origin-right"
         />
       </Row>
+      <LayerOrderRow node={node} />
       <SliderRow
         label={t('common.opacity')}
         value={Math.round((node.opacity ?? 1) * 100)}
@@ -387,7 +469,7 @@ function TexturePanel({ node }) {
 /* ── Mesh settings ────────────────────────────────────────────────────────── */
 
 function MeshPanel({ node, onRemesh, onDeleteMesh }) {
-  const { t } = useTranslation(); // 组件内订阅语言
+  const { t, lang } = useTranslation(); // 组件内订阅语言
   const [expanded, setExpanded] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const meshDefaults = useEditorStore(s => s.meshDefaults);
@@ -613,7 +695,7 @@ function MeshPanel({ node, onRemesh, onDeleteMesh }) {
         <DialogContent>
           <DialogTitle>{t('panels.inspector.confirmDeleteMeshTitle')}</DialogTitle>
           <DialogDescription>
-            {t('panels.inspector.confirmDeleteMeshDesc', { name: node.name || node.id })}
+            {t('panels.inspector.confirmDeleteMeshDesc', { name: labelFor(node.name || node.id, lang) })}
           </DialogDescription>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>

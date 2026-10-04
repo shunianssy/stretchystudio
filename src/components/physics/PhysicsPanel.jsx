@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ChevronDown, ChevronRight, Trash2, Plus, RotateCcw } from 'lucide-react';
 import { useTranslation } from '@/i18n';
+import { labelFor } from '@/i18n/labels';
 
 /** 类别 -> i18n 键 的映射表（模块级常量，渲染时再调用 t()） */
 const CATEGORY_LABEL_KEYS = {
@@ -23,7 +24,7 @@ const CATEGORY_LABEL_KEYS = {
  * customises rules.
  */
 export function PhysicsPanel() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const physicsRules    = useProjectStore(s => s.project.physicsRules);
   const setPhysicsRules = useProjectStore(s => s.setPhysicsRules);
   const createPhysicsRule = useProjectStore(s => s.createPhysicsRule);
@@ -99,7 +100,7 @@ export function PhysicsPanel() {
                   </button>
 
                   <span className={`text-xs flex-1 font-medium ${!isEnabled ? 'line-through text-muted-foreground' : ''}`}>
-                    {rule.name}
+                    {labelFor(rule.name, lang)}
                   </span>
 
                   <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded shrink-0">

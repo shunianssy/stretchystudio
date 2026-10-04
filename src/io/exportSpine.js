@@ -1,7 +1,7 @@
 /**
  * exportSpine.js
  * 
- * Logic to export the Stretchy Studio project to Spine 4.0 JSON format.
+ * Logic to export the Plianca Studio project to Spine 4.0 JSON format.
  */
 import { computeWorldMatrices } from '@/renderer/transforms';
 import { t } from '@/i18n';
@@ -68,7 +68,7 @@ function buildSpineJson(project) {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
   // Spine expects bone setup coordinates (x,y) to be local to the parent bone.
-  // In Stretchy Studio, a node's local transform places its pivot at (x + pivotX, y + pivotY)
+  // In Plianca Studio, a node's local transform places its pivot at (x + pivotX, y + pivotY)
   // within its parent's un-transformed internal coordinate space.
   // The distance from the parent's pivot to the child's pivot in this local space is simply:
   // dx = (child.x + child.pivotX) - parent.pivotX
