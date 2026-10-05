@@ -101,6 +101,56 @@ function toImage(cssX, cssY, zoom, panX, panY) {
 
 
 /**
+ * 按「关节绝对旋转角」把四肢顶点从静止坐标摆到目标姿态。
+ *
+ * 公式：每个顶点绕关节轴心旋转 angleDeg × weight。
+ *   weight = 0 → 顶点不动（跟随肩 / 髋）；weight = 1 → 整量旋转（跟随肘 / 膝）；
+ *   0 < weight < 1 → 部分旋转，形成关节处的平滑过渡。
+ *
+ * 为什么以「静止坐标 + 绝对角度」为基准，而不是在上一帧顶点上继续叠增量：
+ *   两者在数学上等价（增量累加 = 权重稳定的绝对旋转），但绝对式每次都由 restX/restY
+ *   重算，任何历史上被烘焙坏的形变都会被自动抹掉 —— 用户只要按一下关节，被拧成
+ *   麻花的手就会恢复原状，不需要重新导入 PSD 或重做网格。
+ *
+ * @param {Array<{x:number,y:number,restX?:number,restY?:number}>} restVerts 静止坐标顶点（x/y 仅作兜底）
+ * @param {Array<{x:number,y:number}>} baseVerts 参考顶点：动画模式下为关键帧 / 草稿顶点，非动画模式传 null
+ * @param {number[]} weights    与顶点等长的权重数组（0..1）
+ * @param {number} pivotX,pivotY 关节轴心（图像坐标）
+ * @param {number} angleDeg     旋转角（度，与骨骼 rotation 同向同刻度）
+ * @returns {Array<{x:number,y:number}>} 摆好姿势的顶点数组
+ */
+function poseLimbVertices(restVerts, baseVerts, weights, pivotX, pivotY, angleDeg) {
+  const angleRad = angleDeg * (Math.PI / 180);
+
+  return restVerts.map((restVertex, index) => {
+    // 参考位置：优先用调用方给的基线（关键帧 / 上一帧），否则回到静止坐标
+    const base = baseVerts?.[index] ?? restVertex;
+    // restX/restY 是形变重算的锚，缺省时退化成当前坐标（旧数据）
+    const baseX = base?.x ?? restVertex?.restX ?? restVertex?.x ?? 0;
+    const baseY = base?.y ?? restVertex?.restY ?? restVertex?.y ?? 0;
+
+    const weight = Number(weights?.[index] ?? 0);
+    // 注意：返回值必须保留 restX/restY 等原始字段 —— 这批顶点随后会被烘焙回
+    // mesh.vertices，一旦丢掉静止坐标，自愈（以静止坐标重算）就永久失效了。
+    if (weight === 0) return { ...restVertex, x: baseX, y: baseY }; // 不参与形变
+
+    // 以关节为原点取偏移向量，再按「角度 × 权重」旋转
+    const offsetX = baseX - pivotX;
+    const offsetY = baseY - pivotY;
+    const weightedAngle = angleRad * weight;
+    const cosWeighted = Math.cos(weightedAngle);
+    const sinWeighted = Math.sin(weightedAngle);
+
+    return {
+      ...restVertex,
+      x: pivotX + offsetX * cosWeighted - offsetY * sinWeighted,
+      y: pivotY + offsetX * sinWeighted + offsetY * cosWeighted,
+    };
+  });
+}
+
+
+/**
  * 生成一段圆弧的 SVG path（旋转手柄用）。
  *
  * 为什么自己拼 path：SVG 没有现成的「圆环扇形」原语，只能用 A（arc）命令手写。
@@ -376,10 +426,8 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
         // 现在改用 suggestLimbJointPivot() 自愈：
         //   - arm：腕 = 依赖部件包围盒并集上离肩最近的点；leg：踝 = 离髋最远的 bbox 角；
         //   - 关节 = 父关节与锚点中点。
-        // 修复前先把依赖网格顶点的 x/y 重置为静止坐标 restX/restY，撤销已烘焙的坏形变，
-        // 让本次旋转在干净数据上进行；没有 rest 坐标（旧数据）或建议结果仍退化时，
-        // 回退为「跳过形变 + toast 提示」。
-        const restoredByPart = new Map(); // partId → { verts, restored }：记录恢复后的顶点，供后续复用
+        // 注意：这里只把「轴心」挪回合理位置；顶点归零交给段落 3.3 统一处理
+        // （那里每次拖动都以静止坐标重算，坏形变自动被抹掉）。
         if (depNodes.length > 0 && isDegenerateJoint(shoulderX, shoulderY, pivotX, pivotY)) {
           const kind = node.boneRole.endsWith('Elbow') ? 'arm' : 'leg'; // 由角色后缀判断肢体类型
           const fix = suggestLimbJointPivot(shoulderX, shoulderY, depNodes, kind);
@@ -392,33 +440,10 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
                 bn.transform.pivotX = fix.x;
                 bn.transform.pivotY = fix.y;
               }
-              for (const d of depNodes) {
-                const p = proj.nodes.find(n => n.id === d.id);
-                if (!p?.mesh) continue;
-                let restoredCount = 0;
-                // x/y 恢复到静止坐标；没有 rest 坐标的旧网格保持原样（restoredCount 保持 0，标记为不可恢复）
-                p.mesh.vertices = p.mesh.vertices.map(v => {
-                  if (Number.isFinite(v.restX) && Number.isFinite(v.restY)) {
-                    restoredCount++;
-                    return { ...v, x: v.restX, y: v.restY };
-                  }
-                  return { ...v };
-                });
-                restoredByPart.set(d.id, {
-                  verts: p.mesh.vertices.map(v => ({ ...v })),
-                  restored: restoredCount > 0,
-                });
-              }
             });
             pivotX = fix.x;
             pivotY = fix.y;
             jointRepaired = true;
-            // 动画模式：草稿里残留的旧形变必须被恢复值覆盖，否则画布仍会显示坏数据
-            if (editorModeRef.current === 'animation') {
-              for (const [pid, r] of restoredByPart) {
-                setDraftPoseRef.current(pid, { mesh_verts: r.verts });
-              }
-            }
             toast({
               title: t('canvas.skeleton.jointAutoFixed.title'),
               description: t('canvas.skeleton.jointAutoFixed.description'),
@@ -427,35 +452,70 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
           }
         }
 
-        // 段落 3.3：逐部件计算本次拖动要用的「起始顶点 + 逐顶点权重」
+        // 段落 3.3：逐部件建立「静止基线 restVerts + 逐顶点权重」
+        // ───────────────────────────────────────────────────────────
+        // 为什么基线用 restX/restY 而不是当前 x/y：
+        //   关节旋转是以「权重 × 绝对角度」的方式烘焙进顶点 x/y 的。以静止坐标重算，
+        //   结果与增量累加在数学上等价，但任何历史上被烘焙坏的形变都会被自动抹掉，
+        //   于是用户只要点一下肘关节，被拧成麻花的手就恢复原状（无需重导 PSD / 重做网格）。
+        //   这一点只在 staging（绑定）模式成立：动画模式的顶点来自关键帧，是关键帧的
+        //   绝对顶点，不能拿静止坐标去重置，否则会破坏已打好的关键帧。
+        const useRestBaseline = editorModeRef.current === 'staging';
         for (const pt of depNodes) {
-          const r = restoredByPart.get(pt.id);
-          // 两种情况跳过形变：关节仍然退化（自动修复没推导出位置），
-          // 或关节修好了但该网格是缺少静止坐标的旧数据（恢复不了，别把坏形变再甩一次）
-          if (isDegenerateJoint(shoulderX, shoulderY, pivotX, pivotY) || (jointRepaired && r && !r.restored)) {
+          // 跳过形变：关节仍然退化（自动修复没推导出位置）
+          if (isDegenerateJoint(shoulderX, shoulderY, pivotX, pivotY)) {
             degenerateParts.push(pt.name ?? pt.id);
             continue;
           }
-          // 修复过的部件直接用恢复后的网格；其余按原逻辑取基线 / 草稿 / 关键帧
-          let startVerts = r ? r.verts : pt.mesh.vertices;
-          if (!r && editorModeRef.current === 'animation') {
-             startVerts = animDraftPose.get(pt.id)?.mesh_verts ?? overrides?.get(pt.id)?.mesh_verts ?? pt.mesh.vertices;
+          const rawVerts = pt.mesh?.vertices ?? [];
+          // 静止基线：优先 restX/restY，缺失（旧数据）时退回当前坐标
+          const restVerts = rawVerts.map(v => ({
+            ...v,
+            x: Number.isFinite(v.restX) ? v.restX : (v.x ?? 0),
+            y: Number.isFinite(v.restY) ? v.restY : (v.y ?? 0),
+          }));
+          const hasRestCoords = restVerts.some(v => Number.isFinite(v.restX) && Number.isFinite(v.restY));
+          // 关节刚被自动修复、但网格是缺少静止坐标的旧数据 → 恢复不了，别把坏形变再甩一次
+          if (jointRepaired && !hasRestCoords) {
+            degenerateParts.push(pt.name ?? pt.id);
+            continue;
           }
+
+          // 参考基线（增量式用）：staging 为 null（走绝对式，见上）；动画模式取草稿 / 关键帧 /
+          // 基础网格，保持与旧行为一致的增量旋转。
+          const baseVerts = useRestBaseline
+            ? null
+            : (animDraftPose.get(pt.id)?.mesh_verts
+               ?? overrides?.get(pt.id)?.mesh_verts
+               ?? pt.mesh.vertices);
+
           // 权重必须用**当前**轴心重算，不能复用 mesh 里烘焙的 boneWeights：
           // 烘焙权重是生成网格那一刻的，之后一旦拖动过肘/膝关节就会过期，
           // 导致关节两侧顶点按错误比例旋转 → 部件扭曲 + 一道硬折痕（像被切开）。
-          // （computeLimbWeights 内部改用静止坐标 restX/restY 求投影，避免多次拖动后权重漂移）
+          // 同时传入 triangles：权重沿网格拓扑（测地距离）计算，弯曲肢体 / 小部件
+          // 才不会因为直线投影算错一侧归属而被扯成扇形（手部扭曲的根因）。
           const weights = computeLimbWeights(
-            startVerts, shoulderX, shoulderY,
-            pivotX, pivotY
+            restVerts, shoulderX, shoulderY,
+            pivotX, pivotY, undefined, pt.mesh?.triangles
           );
           dependentParts.push({
             partId: pt.id,
-            startVerts: startVerts.map(v => ({...v})), // 拷贝一份作为本次拖动的不可变起点
+            restVerts,                                   // 绝对式的锚：静止坐标
+            baseVerts,                                   // 增量式的基线；null 表示走绝对式
             boneWeights: weights,
             imgPivotX: pivotX,
             imgPivotY: pivotY,
           });
+
+          // staging 模式：按下立即按「骨骼当前角度」摆好姿态。这样即使用户只单击不拖动，
+          // 也能把历史坏形变清零（自愈），并给出即时视觉反馈。
+          if (useRestBaseline) {
+            setDraftPoseRef.current(pt.id, {
+              mesh_verts: poseLimbVertices(
+                restVerts, null, weights, pivotX, pivotY, node.transform.rotation ?? 0,
+              ),
+            });
+          }
         }
         if (degenerateParts.length > 0) {
           // 提示用户先去骨架编辑模式把关节拖到正确位置，而不是放任部件被甩飞
@@ -571,29 +631,21 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       // 段落 2.1：四肢顶点蒙皮（仅肘/膝有关联部件时）。
       // 为什么统一走 setDraftPose：无论 staging 还是 animation 模式，都要经过
       // CanvasViewport tick 里的 GPU 上传路径把顶点刷进显存，走草稿是最省事且一致的通道。
+      //
+      // 两种基准（由 down 阶段决定 dep.baseVerts 是否为 null）：
+      //   - 绝对式（staging）：角度 = 骨骼绝对旋转，基线 = 静止坐标 → 结果只取决于当前角度，
+      //                        历史坏形变被自动抹掉（自愈），来回拖动不会累积误差；
+      //   - 增量式（animation）：角度 = 本次拖动增量，基线 = 草稿 / 关键帧顶点，
+      //                        保持关键帧语义不变。
       if (drag.dependentParts && drag.dependentParts.length > 0) {
-        const deltaRad = delta * (Math.PI / 180); // 增量角转弧度，供旋转矩阵使用
         for (const dep of drag.dependentParts) {
-          const newVerts = dep.startVerts.map((v, i) => {
-            const vertexWeight = dep.boneWeights?.[i] ?? 0;
-            if (vertexWeight === 0) return { ...v }; // 权重为 0：该顶点不参与形变，原样返回
+          const angleDeg = dep.baseVerts ? delta : (drag.startRotation + delta);
 
-            // 以关节为原点，把顶点位置转成相对轴心的偏移向量
-            const offsetFromPivotX = v.x - dep.imgPivotX;
-            const offsetFromPivotY = v.y - dep.imgPivotY;
-
-            // 关键：旋转量按权重缩放（顶点越靠近关节、权重越大，转得越多），
-            // 由此形成关节两侧平滑过渡，而不是整块刚性旋转（刚性旋转会出现硬折痕）。
-            const weightedAngleRad = deltaRad * vertexWeight;
-            const weightedCos = Math.cos(weightedAngleRad);
-            const weightedSin = Math.sin(weightedAngleRad);
-
-            // 二维旋转矩阵作用于偏移向量
-            const rotatedX = offsetFromPivotX * weightedCos - offsetFromPivotY * weightedSin;
-            const rotatedY = offsetFromPivotX * weightedSin + offsetFromPivotY * weightedCos;
-
-            return { ...v, x: dep.imgPivotX + rotatedX, y: dep.imgPivotY + rotatedY };
-          });
+          // 顶点旋转（含权重缩放）统一走共享函数，避免与自愈路径出现两套公式
+          const newVerts = poseLimbVertices(
+            dep.restVerts, dep.baseVerts, dep.boneWeights,
+            dep.imgPivotX, dep.imgPivotY, angleDeg,
+          );
 
           // staging 与 animation 模式都写草稿：前者由 CanvasViewport 的 GPU 上传块消费
           setDraftPoseRef.current(dep.partId, { mesh_verts: newVerts });

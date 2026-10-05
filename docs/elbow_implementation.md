@@ -14,36 +14,49 @@ Stretchy Studio 使用一套自定义、轻量级的 JavaScript 驱动蒙皮引�
 
 肢体图层（例如 `handwear-l`）被附加到一根“肩部”骨骼（`leftArm`）。一根“肘部”骨骼（`leftElbow`）作为子级轴心。
 
-### 轴感知投影
-系统通过将每个顶点投影到由“肩到肘”轴所定义的向量上来计算权重。
+### 沿网格拓扑量距离（测地距离）
+权重不再用「顶点到肩肘轴的直线投影」计算 —— 直线投影在两种情况下会算错一侧归属，
+把部件扯成扇形（用户看到的手部扭曲）：
+
+1. 贴图里肢体本身是弯的（L 形 / 抬起的胳膊）：远端在几何上「绕回」了关节后方，
+   直线投影把它误判为仍在肩这一侧，于是远端拿 0 原地不动、邻点拿 1 飞走；
+2. 部件很小且关节轴心落在部件内部（手腕被拖到手套中间）：整只手套横跨混合带，
+   一半 1 一半 0，旋转后手套被对折。
+
+现在的做法：从「离肩最近、且位于关节近端一侧」的顶点出发，沿三角形边做 Dijkstra
+得到测地距离，再以「离关节轴心最近的可达顶点」为锚点换算权重。
 
 ```javascript
-// Axis vector from shoulder (sx, sy) to elbow (jx, jy)
-const axDx = jx - sx;
-const axDy = jy - sy;
-const axLen = Math.sqrt(axDx * axDx + axDy * axDy) || 1;
-const axX = axDx / axLen;
-const axY = axDy / axLen;
-
-// Signed distance of vertex past the elbow pivot along the axis
-const proj = (v.x - jx) * axX + (v.y - jy) * axY;
-
-// Normalize weight with a 40px blending zone
-const weight = Math.max(0, Math.min(1, proj / 40 + 0.5));
+// 1) 沿网格边（静止坐标下的边长）做最短路，得到每个顶点的测地距离 geo[i]
+// 2) 锚点 = 离关节轴心最近的顶点，其测地距离记为 jointDistance
+// 3) 权重：只在关节近端 blend（默认 40px）内过渡，越过关节一律刚性跟随
+const weight = clamp01(1 - (jointDistance - geo[i]) / blend);
 ```
 
-- **权重 0.0**：刚性绑定到肩部（上肢体）。
-- **权重 1.0**：刚性绑定到肘部旋转（下肢体）。
-- **0.0 - 1.0**：混合变形（关节）。
+- **权重 0.0**：刚性绑定到肩部（上肢体），不随肘部转动。
+- **权重 1.0**：刚性绑定到肘部旋转（下肢体）。**位于关节远端的顶点一律为 1**，
+  因此手掌这类紧凑部件不会被自身关节撕裂。
+- **0.0 - 1.0**：混合变形，仅出现在关节近端 blend 像素内。
+
+无三角形索引时（旧项目数据）自动退回直线投影兜底，公式形状与上面一致：
+`clamp01(1 + proj / blend)`。
 
 ## 3. 实时交互
 
 ### 交互拦截
 `SkeletonOverlay.jsx` 拦截角色匹配 `leftElbow`、`rightElbow`、`leftKnee` 或 `rightKnee` 的骨骼的指针事件。
 
-1. **PointerDown**：捕获所有依赖部件（其 `mesh.jointBoneId` 与被拖动骨骼匹配的部件）的“起始”顶点位置。
+1. **PointerDown**：收集依赖部件（其 `mesh.jointBoneId` 与被拖动骨骼匹配的部件），
+   - 以静止坐标 `restX/restY` 作为基线（**Staging 模式**）—— 顶点由「静止坐标 + 骨骼绝对旋转」重算，
+     结果只取决于当前角度；
+   - 以草稿 / 关键帧顶点作为基线（**Animation 模式**）—— 保持关键帧的增量语义。
 2. **PointerMove**：为每个顶点计算旋转矩阵。旋转角度按顶点权重缩放（`rad * weight`）。
 3. **DraftPose 流式传输**：产生的变形顶点被直接写入 `draftPose.mesh_verts`。
+
+> [!TIP]
+> **Staging 自愈**：因为 Staging 模式每次都从静止坐标重算，历史上被烘焙坏的形变
+> （例如被拧成麻花的手掌）会在用户按下关节的瞬间自动恢复原状 —— 不需要重新导入 PSD 或重做网格。
+> 同时来回拖动不会累积误差（旧实现是增量叠加，虽然数学上等价，但无法清除遗留脏数据）。
 
 ### 渲染循环集成
 `CanvasViewport.jsx` 中的 `rAF` tick 已被修改为始终将 `draftPose.mesh_verts` 注入 `poseOverrides` 映射。这使得即便编辑器处于 **Staging** 模式，GPU 也能上传新位置，从而在绑定期间提供即时视觉反馈。
@@ -58,7 +71,8 @@ const weight = Math.max(0, Math.min(1, proj / 40 + 0.5));
 > **硬编码角色令牌**：实现依赖对 `leftElbow`、`rightElbow`、`leftKnee` 和 `rightKnee` 的精确字符串匹配。新增肢体关节需要在 `CanvasViewport.jsx`、`SkeletonOverlay.jsx` 和 `Inspector.jsx` 中更新集合。
 
 > [!WARNING]
-> **线性投影偏差**：当前权重模型假设肢体是相对笔直的片段。基础贴图中高度弯曲或“L 形”的肢体可能导致权重分布不均。
+> **权重网格密度**：测地距离沿三角形边累计，网格过稀（`gridSpacing` 过大）会放大
+> 「沿边绕行」与真实沿肢体的误差。发现关节过渡不自然时，可对该部件重做网格并调小步长。
 
 > [!NOTE]
 > **Staging 反馈**：使用 `draftPose` 进行 Staging 反馈略微偏离了 `draftPose` 的原始意图（它原本仅用于动画模式）。这造成了一种依赖，即 Staging 模式的“pose”逻辑与动画 store 耦合。

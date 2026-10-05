@@ -1035,8 +1035,10 @@ export default function CanvasViewport({
                 const sx = parentGroup.transform.pivotX;
                 const sy = parentGroup.transform.pivotY;
 
-                // 权重计算抽到共享函数里，保证与「拖动关节时用当前轴心重算」用的是同一套公式
-                node.mesh.boneWeights = computeLimbWeights(vertices, sx, sy, jx, jy);
+                // 权重计算抽到共享函数里，保证与「拖动关节时用当前轴心重算」用的是同一套公式。
+                // 传入 triangles 让权重沿网格拓扑（测地距离）计算：弯曲肢体 / 小部件
+                // 用直线投影会算错一侧归属，导致部件被扯成扇形（手部扭曲的根因之一）。
+                node.mesh.boneWeights = computeLimbWeights(vertices, sx, sy, jx, jy, undefined, triangles);
                 node.mesh.jointBoneId = jointBone.id;
                 console.log(`[Skinning] ${node.name} → ${childRole} (${vertices.length} verts, pivot ${jx.toFixed(0)},${jy.toFixed(0)})`);
               }
