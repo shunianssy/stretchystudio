@@ -18,7 +18,7 @@ import { useAnimationStore } from '@/store/animationStore';
 import { SKELETON_CONNECTIONS } from '@/io/armatureOrganizer';
 import { computeWorldMatrices, mat3Identity, mat3Inverse } from '@/renderer/transforms';
 import { computePoseOverrides } from '@/renderer/animationEngine';
-import { computeLimbWeights } from '@/mesh/limbWeights';
+import { computeLimbWeights, isDegenerateJoint, suggestLimbJointPivot } from '@/mesh/limbWeights';
 import { useToast } from '@/hooks/use-toast';
 import { beginBatch, endBatch } from '@/store/undoHistory';
 import { useTranslation } from '@/i18n';
@@ -229,23 +229,18 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       const rect = svg.getBoundingClientRect();
       const { zoom, panX, panY } = viewRef.current;
 
-      // Compute pivot screen position using world matrix
       const worldMap = computeWorldMatrices(effectiveNodes);
       const node = effectiveNodes.find(n => n.id === nodeId);
       if (!node) return;
-      const wm = worldMap.get(nodeId) ?? mat3Identity();
-      const wx = wm[0] * node.transform.pivotX + wm[3] * node.transform.pivotY + wm[6];
-      const wy = wm[1] * node.transform.pivotX + wm[4] * node.transform.pivotY + wm[7];
-      const pivotScreenX = wx * zoom + panX;
-      const pivotScreenY = wy * zoom + panY;
 
-      const cssX = e.clientX - rect.left;
-      const cssY = e.clientY - rect.top;
-      const dx = cssX - pivotScreenX;
-      const dy = cssY - pivotScreenY;
+      // 有效轴心：若下方触发了退化关节自动修复，会被替换成修复后的位置
+      let pivotX = node.transform.pivotX;
+      let pivotY = node.transform.pivotY;
+      let jointRepaired = false;
 
       const JSKinningRoles = new Set(['leftElbow', 'rightElbow', 'leftKnee', 'rightKnee']);
       const dependentParts = [];
+      const degenerateParts = [];
       if (JSKinningRoles.has(node.boneRole)) {
         const activeAnim = animations.find(a => a.id === animActiveAnimationId) ?? null;
         const endMs = (animEndFrame / animFps) * 1000;
@@ -254,26 +249,95 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
         const shoulder = effectiveNodes.find(n => n.id === node.parent);
         const shoulderX = shoulder?.transform?.pivotX ?? 0;
         const shoulderY = shoulder?.transform?.pivotY ?? 0;
-        for (const pt of effectiveNodes) {
-          if (pt.type === 'part' && pt.mesh?.jointBoneId === node.id) {
-            let startVerts = pt.mesh.vertices;
-            if (editorModeRef.current === 'animation') {
-               startVerts = animDraftPose.get(pt.id)?.mesh_verts ?? overrides?.get(pt.id)?.mesh_verts ?? pt.mesh.vertices;
-            }
-            // 权重必须用**当前**轴心重算：mesh 里烘焙的 boneWeights 是生成网格那一刻的，
-            // 之后一旦拖动过肘/膝关节就会过期，导致部件扭曲、出现硬折痕（看起来像被切开）。
-            const weights = computeLimbWeights(
-              startVerts, shoulderX, shoulderY,
-              node.transform.pivotX, node.transform.pivotY
-            );
-            dependentParts.push({
-              partId: pt.id,
-              startVerts: startVerts.map(v => ({...v})),
-              boneWeights: weights,
-              imgPivotX: node.transform.pivotX,
-              imgPivotY: node.transform.pivotY,
+        const depNodes = effectiveNodes.filter(pt => pt.type === 'part' && pt.mesh?.jointBoneId === node.id);
+
+        // ── 退化关节自动修复（自愈）────────────────────────────────────
+        // 关节几乎压在父关节上（多为自动绑定把肘/膝放错位置）时，过去只能
+        // 跳过形变并提示用户手动修。但此时关联网格往往已经被旧的错误权重
+        // 「甩飞」过一次、把坏形变烘焙进了顶点（用户看到的「左手扭曲」）。
+        // 现在按依赖部件的包围盒把关节放回肢体上，同时把网格顶点恢复到
+        // 静止坐标 restX/restY，让本次旋转直接在干净的数据上进行。
+        const restoredByPart = new Map(); // partId → { verts, restored }
+        if (depNodes.length > 0 && isDegenerateJoint(shoulderX, shoulderY, pivotX, pivotY)) {
+          const kind = node.boneRole.endsWith('Elbow') ? 'arm' : 'leg';
+          const fix = suggestLimbJointPivot(shoulderX, shoulderY, depNodes, kind);
+          if (fix) {
+            // 写入项目（beginBatch 之前 → 修复是独立的一步撤销，不与本次拖动混在一起）
+            updateProject((proj) => {
+              const bn = proj.nodes.find(n => n.id === nodeId);
+              if (bn?.transform) {
+                bn.transform.pivotX = fix.x;
+                bn.transform.pivotY = fix.y;
+              }
+              for (const d of depNodes) {
+                const p = proj.nodes.find(n => n.id === d.id);
+                if (!p?.mesh) continue;
+                let restoredCount = 0;
+                // x/y 恢复到静止坐标；没有 rest 坐标的旧网格保持原样（记为不可恢复）
+                p.mesh.vertices = p.mesh.vertices.map(v => {
+                  if (Number.isFinite(v.restX) && Number.isFinite(v.restY)) {
+                    restoredCount++;
+                    return { ...v, x: v.restX, y: v.restY };
+                  }
+                  return { ...v };
+                });
+                restoredByPart.set(d.id, {
+                  verts: p.mesh.vertices.map(v => ({ ...v })),
+                  restored: restoredCount > 0,
+                });
+              }
             });
+            pivotX = fix.x;
+            pivotY = fix.y;
+            jointRepaired = true;
+            // 动画模式：草稿里残留的旧形变必须被恢复值覆盖，否则画布仍显示坏数据
+            if (editorModeRef.current === 'animation') {
+              for (const [pid, r] of restoredByPart) {
+                setDraftPoseRef.current(pid, { mesh_verts: r.verts });
+              }
+            }
+            toast({
+              title: t('canvas.skeleton.jointAutoFixed.title'),
+              description: t('canvas.skeleton.jointAutoFixed.description'),
+            });
+            console.log(`[SkeletonOverlay] ${node.boneRole} pivot auto-repaired to (${fix.x.toFixed(0)},${fix.y.toFixed(0)})`);
           }
+        }
+
+        for (const pt of depNodes) {
+          const r = restoredByPart.get(pt.id);
+          // 两种情况跳过形变：关节仍然退化（自动修复没推导出位置），
+          // 或关节修好了但该网格是缺少静止坐标的旧数据（恢复不了，别把坏形变再甩一次）
+          if (isDegenerateJoint(shoulderX, shoulderY, pivotX, pivotY) || (jointRepaired && r && !r.restored)) {
+            degenerateParts.push(pt.name ?? pt.id);
+            continue;
+          }
+          // 修复过的部件直接用恢复后的网格；其余按原逻辑取基线 / 草稿 / 关键帧
+          let startVerts = r ? r.verts : pt.mesh.vertices;
+          if (!r && editorModeRef.current === 'animation') {
+             startVerts = animDraftPose.get(pt.id)?.mesh_verts ?? overrides?.get(pt.id)?.mesh_verts ?? pt.mesh.vertices;
+          }
+          // 权重必须用**当前**轴心重算：mesh 里烘焙的 boneWeights 是生成网格那一刻的，
+          // 之后一旦拖动过肘/膝关节就会过期，导致部件扭曲、出现硬折痕（看起来像被切开）。
+          // （函数内部改用静止坐标 restX/restY 求投影，避免多次拖动后权重漂移）
+          const weights = computeLimbWeights(
+            startVerts, shoulderX, shoulderY,
+            pivotX, pivotY
+          );
+          dependentParts.push({
+            partId: pt.id,
+            startVerts: startVerts.map(v => ({...v})),
+            boneWeights: weights,
+            imgPivotX: pivotX,
+            imgPivotY: pivotY,
+          });
+        }
+        if (degenerateParts.length > 0) {
+          // 提示用户先去骨架编辑模式把关节拖到正确位置，而不是放任部件被甩飞
+          toast({
+            title: t('canvas.skeleton.jointPivot.title'),
+            description: t('canvas.skeleton.jointPivot.description'),
+          });
         }
         if (dependentParts.length === 0) {
           console.warn(`[SkeletonOverlay] ${node.boneRole} has no dependent parts. Re-generate arm/leg mesh after rigging.`);
@@ -281,9 +345,26 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
           const armParts = effectiveNodes.filter(n => n.type === 'part' && n.mesh);
           console.log('[SkeletonOverlay] Parts with meshes:', armParts.map(p => ({ name: p.name, jointBoneId: p.mesh.jointBoneId })));
         } else {
-          console.log(`[SkeletonOverlay] ${node.boneRole}: driving ${dependentParts.length} part(s), pivot=(${node.transform.pivotX.toFixed(0)},${node.transform.pivotY.toFixed(0)})`);
+          console.log(`[SkeletonOverlay] ${node.boneRole}: driving ${dependentParts.length} part(s), pivot=(${pivotX.toFixed(0)},${pivotY.toFixed(0)})`);
         }
       }
+
+      // Compute pivot screen position using world matrix.
+      // 轴心的世界位置 = 父世界矩阵 · (x + pivot)（由 makeLocalMatrix 的模型推得：
+      // L·pivot = M·pivot + [(x+pivot) − M·pivot] = x + pivot）。修复只改了 pivot，
+      // 父链的世界矩阵不受影响，因此用修复后的 pivotX/pivotY 代入仍然精确。
+      const offsetX = node.transform.x ?? 0;
+      const offsetY = node.transform.y ?? 0;
+      const pwm = (node.parent && worldMap.has(node.parent)) ? worldMap.get(node.parent) : mat3Identity();
+      const wx = pwm[0] * (offsetX + pivotX) + pwm[3] * (offsetY + pivotY) + pwm[6];
+      const wy = pwm[1] * (offsetX + pivotX) + pwm[4] * (offsetY + pivotY) + pwm[7];
+      const pivotScreenX = wx * zoom + panX;
+      const pivotScreenY = wy * zoom + panY;
+
+      const cssX = e.clientX - rect.left;
+      const cssY = e.clientY - rect.top;
+      const dx = cssX - pivotScreenX;
+      const dy = cssY - pivotScreenY;
 
       dragRef.current = {
         type: 'rotate',
@@ -303,7 +384,7 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
         beginBatch(useProjectStore.getState().project);
       }
     }
-  }, [skeletonEditMode, effectiveNodes, setSelection, animations, animActiveAnimationId, animCurrentTime, animDraftPose]);
+  }, [skeletonEditMode, effectiveNodes, setSelection, updateProject, animations, animActiveAnimationId, animCurrentTime, animDraftPose, toast, t]);
 
   const onPointerMove = useCallback((e) => {
     const drag = dragRef.current;
@@ -412,7 +493,6 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
   useEffect(() => { clearDraftPoseForNodeRef.current = clearDraftPoseForNode; }, [clearDraftPoseForNode]);
 
   const onPointerUp = useCallback(() => {
-    endBatch();
     const drag = dragRef.current;
     dragRef.current = null;
 
@@ -422,6 +502,9 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
         // Staging mode: commit deformed verts into the base mesh so the
         // next drag starts from the correct deformed position,
         // then clear the draft so the GPU upload restores from base mesh.
+        // 注意：必须在 endBatch() 之前提交 —— 否则这次「网格烘焙」会落在批处理
+        // 之外成为单独的历史快照，用户按一次 Ctrl+Z 只能撤回骨骼旋转、撤不掉
+        // 被烘焙的形变，看起来就像「部件被永久扭曲、撤销无效」。
         for (const dep of drag.dependentParts) {
           const latestVerts = useAnimationStore.getState().draftPose.get(dep.partId)?.mesh_verts;
           if (latestVerts) {
@@ -435,6 +518,8 @@ export default function SkeletonOverlay({ view, editorMode, showSkeleton, skelet
       }
       // Animation mode: leave draft pose in place — user commits with K key
     }
+
+    endBatch();
 
     // Auto Keyframe trigger
     if (drag && (drag.type === 'rotate' || drag.type === 'trackpad')) {

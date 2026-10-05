@@ -39,6 +39,14 @@ export default {
       title: 'Limb mesh required',
       description: "To enable rotation: (1) Hide armature, (2) Select the limb layer, (3) Click 'Remesh'.",
     },
+    jointPivot: {
+      title: 'Joint pivot looks wrong',
+      description: "The elbow/knee joint nearly coincides with the shoulder/hip joint, so rotation was skipped for this part. Drag the joint to the right spot in skeleton edit mode; if the part still looks distorted afterwards, remesh it in the inspector.",
+    },
+    jointAutoFixed: {
+      title: 'Joint pivot auto-corrected',
+      description: 'The elbow/knee joint nearly overlapped its parent joint, so it was re-placed from the limb outline and the attached meshes were restored to their rest shape. Keep rotating, or fine-tune the joint in skeleton edit mode.',
+    },
     irisOffset: 'Iris Offset',
   },
 
